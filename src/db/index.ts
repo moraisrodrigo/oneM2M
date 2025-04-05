@@ -1,25 +1,25 @@
-import fs from 'fs';
-import path from 'path';
-import { DBType } from "../types";
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { dirname } from 'path';
+import { DBType } from '../types/index.js';
+import { DB_FILE } from '../constants/index.js';
+import data from './db.json' assert { type: 'json' };
 
-const DB_FILE = path.join(__dirname, '..', 'db.json');
+export function getDB() {
+    const defaultStructure: DBType = { AEs: [], containers: [], contentInstances: [] };
 
-export const getDB = (): DBType => {
-    if (!fs.existsSync(DB_FILE)) return {
-        AEs: [],
-        containers: [],
-        contentInstances: [],
-    };
+    if (!data) return defaultStructure;
 
-    return JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
+    if (!data.AEs || !data.containers || !data.contentInstances) return defaultStructure;
+    
+    return data as DBType;
 }
 
-export const saveDB = (data: DBType): void => {
-    const dir = path.dirname(DB_FILE);    
+export function saveDB(data: DBType): void {
+    const dir = dirname(DB_FILE);
 
-    if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
+    if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
     }
 
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+    writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 }

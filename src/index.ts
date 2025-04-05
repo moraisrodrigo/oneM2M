@@ -1,10 +1,8 @@
 import http from 'http';
-import { Service } from './src/services';
-import { Controller } from './src/controllers';
+import { Service } from './services/index.js';
+import { Controller } from './controllers/index.js';
 
-const service = new Service();
-
-const controller = new Controller(service);
+const controller = new Controller(new Service());
 
 const server = http.createServer((req, res) => controller.handleRequest(req, res));
 

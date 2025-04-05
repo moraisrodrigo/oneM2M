@@ -1,6 +1,6 @@
 import { IncomingMessage } from "http";
-import { ShortName } from "../types";
-import { CSE_NAME } from "../constants";
+import { ShortName } from "../types/index.js";
+import { CSE_NAME } from "../constants/index.js";
 
 export const isPostRequest = (req: IncomingMessage): boolean => req.method === 'POST';
 
@@ -19,7 +19,5 @@ export const isApplicationEntityCreateRequest = (req: IncomingMessage): boolean 
 export const isContainerCreateRequest = (req: IncomingMessage): boolean => {
     if (!req.url || !isPostRequest(req)) return false;
 
-    const parts = req.url.split('/');
-
-    return parts.length === 2;
+    return req.url.split('/').length === 3;
 }
