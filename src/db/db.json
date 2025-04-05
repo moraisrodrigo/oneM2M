@@ -1,12 +1,5 @@
 {
-    "AEs": [
-        {
-            "ty": 2,
-            "rn": "Light",
-            "ri": "1",
-            "ct": "2025-04-05T02:01:19.505Z"
-        }
-    ],
+    "AEs": [],
     "containers": [],
     "contentInstances": []
 }
