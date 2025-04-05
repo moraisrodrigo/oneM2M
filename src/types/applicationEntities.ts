@@ -1,4 +1,4 @@
-import { ResourceType, ShortName } from ".";
+import { ResourceType, ShortName } from "./index.js";
 
 export class ApplicationEntity {
     [ShortName.Type] = ResourceType.ApplicationEntity;

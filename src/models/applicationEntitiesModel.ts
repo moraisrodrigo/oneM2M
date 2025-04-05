@@ -1,16 +1,7 @@
-import { ApplicationEntity, ShortName } from "../types";
+import { ApplicationEntity } from "../types/index.js";
 
-export class ApplicationEntityModel extends ApplicationEntity implements BaseModelInterface<ApplicationEntity> {
+export class ApplicationEntityModel extends ApplicationEntity {
     constructor(resourceName: string, resourceId: string) {
         super(resourceName, resourceId);
-    }
-
-    getDTO(): ApplicationEntity {
-        return {
-            [ShortName.Type]: this[ShortName.Type],
-            [ShortName.ResourceName]: this[ShortName.ResourceName],
-            [ShortName.ResourceID]: this[ShortName.ResourceID],
-            [ShortName.CreationTime]: this[ShortName.CreationTime],
-        }
     }
 }

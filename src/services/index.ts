@@ -1,16 +1,13 @@
 import {
     ApplicationEntity,
     Container,
-    ContentInstance,
-    DBType,
     ShortName,
-} from '../types';
-import { ApplicationEntityModel } from '../models/applicationEntitiesModel';
-import { getDB, saveDB } from '../db';
-import { ContainerModel } from '../models/containersModel';
+} from '../types/index.js';
+import { ApplicationEntityModel, ContainerModel, toDTO } from '../models/index.js';
+import { getDB, saveDB } from '../db/index.js';
 
 export class Service {
-    private db: DBType = getDB();
+    private db = getDB();
 
     private save(): void {
         saveDB(this.db);
@@ -25,7 +22,7 @@ export class Service {
 
         this.save();
 
-        return newApplicationEntity.getDTO();
+        return toDTO(newApplicationEntity);
     }
 
     createContainer(resourceName: string, resourceId: string, parentApplicationEntityName: string): Container | null {
@@ -41,6 +38,6 @@ export class Service {
 
         this.save();
 
-        return newContainer;
+        return toDTO(newContainer);
     }
 }

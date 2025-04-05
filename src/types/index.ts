@@ -1,12 +1,12 @@
-import { ShortName } from "./shortName";
-import { ApplicationEntity } from "./applicationEntities";
-import { Container } from "./containers";
-import { ContentInstance } from "./contentInstance";
-import { ResourceType } from "./resourceTypes";
-import { DBType } from "./db";
-import { GeneralError } from "./errors";
-import { CustomHeaders } from "./headers";
-import { CustomAttributes } from "./responses";
+import { ShortName } from "./shortName.js";
+import { ApplicationEntity } from "./applicationEntities.js";
+import { Container } from "./containers.js";
+import { ContentInstance } from "./contentInstance.js";
+import { ResourceType } from "./resourceTypes.js";
+import { DBType } from "./db.js";
+import { GeneralError } from "./errors.js";
+import { CustomHeaders } from "./headers.js";
+import { CustomAttributes } from "./responses.js";
 
 export {
     ShortName,

@@ -1,8 +1,8 @@
 import { IncomingMessage, ServerResponse } from 'http';
-import { Service } from '../services';
-import { isApplicationEntityCreateRequest, isContainerCreateRequest } from '../utils';
-import { CustomHeaders, CustomAttributes, ResourceType, ShortName } from '../types';
-import { JSON_CONTENT_TYPE } from '../constants';
+import { Service } from '../services/index.js';
+import { isApplicationEntityCreateRequest, isContainerCreateRequest } from '../utils/index.js';
+import { CustomHeaders, CustomAttributes, ResourceType, ShortName } from '../types/index.js';
+import { JSON_CONTENT_TYPE } from '../constants/index.js';
 
 export class Controller {
     constructor(private service: Service) {}
@@ -90,9 +90,10 @@ export class Controller {
             return res.end(JSON.stringify({ error: `Missing (${ShortName.ResourceName}) in (${CustomAttributes.Container})` }));
         }
 
+        // '/onem2m/app_light'
         const parts = req.url.split('/');
-        // '/onem2m/app_light/state' (app_light -> index 1)
-        const createdContainer = this.service.createContainer(resourceName, resourceId as string, parts[1]);
+        // parts = [ '', 'onem2m', 'app_light' ]
+        const createdContainer = this.service.createContainer(resourceName, resourceId as string, parts[2]);
 
         if (!createdContainer) {
             res.writeHead(400);
