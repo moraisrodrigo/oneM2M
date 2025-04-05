@@ -1,0 +1,12 @@
+{
+    "license": "MIT",
+    "type": "commonjs",
+    "name": "onem2m",
+    "scripts": {
+        "start": "tsc && node dist/index.js",
+        "dev": "tsc && node dist/index.js"
+    },
+    "devDependencies": {
+        "@types/node": "^22.14.0"
+    }
+}
