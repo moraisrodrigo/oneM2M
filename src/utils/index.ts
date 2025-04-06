@@ -19,5 +19,7 @@ export const isApplicationEntityCreateRequest = (req: IncomingMessage): boolean 
 export const isContainerCreateRequest = (req: IncomingMessage): boolean => {
     if (!req.url || !isPostRequest(req)) return false;
 
+    // '/onem2m/app_light/'
+    // parts = [ '', 'onem2m', 'app_light' ]
     return req.url.split('/').length === 3;
 }
