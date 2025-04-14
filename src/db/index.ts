@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { dirname } from 'path';
 import { DBType } from '../types/index';
-import { DB_FILE } from '../constants/index';
+import { DB_FILE_PATH } from '../constants/index';
 import data from './db.json';
 
 export function getDB() {
@@ -15,11 +15,11 @@ export function getDB() {
 }
 
 export function saveDB(data: DBType): void {
-    const dir = dirname(DB_FILE);
+    const dir = dirname(DB_FILE_PATH);
 
     if (!existsSync(dir)) {
         mkdirSync(dir, { recursive: true });
     }
 
-    writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+    writeFileSync(DB_FILE_PATH, JSON.stringify(data, null, 2));
 }

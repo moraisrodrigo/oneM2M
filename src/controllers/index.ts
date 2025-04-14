@@ -1,9 +1,10 @@
 import { IncomingMessage, ServerResponse } from 'http';
 import { Service } from '../services/index';
-import { CustomHeaders, CustomAttributes, ResourceType, ShortName } from '../types/index';
+import { CustomHeaders, CustomAttributes, ResourceType, ShortName, StatusCode, HTTPStatusCodeMapping } from '../types/index';
 import { JSON_CONTENT_TYPE } from '../constants/index';
 import {
     isApplicationEntityCreateRequest,
+    isApplicationEntityGetRequest,
     isContainerCreateRequest,
     isContentInstanceCreateRequest,
 } from '../utils/index';
@@ -33,6 +34,8 @@ export class Controller {
 
                 if (isContentInstanceCreateRequest(req)) return this.createContentInstance(req, body, res);
 
+                if (isApplicationEntityGetRequest(req)) return this.getAEs(req, res);
+
                 res.writeHead(404);
                 res.end(JSON.stringify({ error: 'Not Found' }));
             } catch (error: any) {
@@ -41,6 +44,19 @@ export class Controller {
                 res.end(JSON.stringify({ error: error.message }));
             }
         });
+    }
+
+    private notImplemented(req: IncomingMessage, res: ServerResponse) {
+        const statusCode = StatusCode.NOT_IMPLEMENTED;
+        res.writeHead(HTTPStatusCodeMapping[statusCode], {
+            [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+            [CustomHeaders.StatusCode]: statusCode,
+        });
+        res.end();
+    }
+
+    private getAEs(req: IncomingMessage, res: ServerResponse) {
+        return this.notImplemented(req, res);
     }
 
     private createAE(req: IncomingMessage, body: string, res: ServerResponse) {

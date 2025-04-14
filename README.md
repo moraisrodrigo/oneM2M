@@ -1,5 +1,8 @@
 # oneM2M
 
+## Setup
+#### Create a `.env` file at the root of the project with (follow the .`env.example` file)
+
 ## Development
 
 ### Install development dependencies

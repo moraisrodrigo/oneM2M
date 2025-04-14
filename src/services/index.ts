@@ -61,4 +61,8 @@ export class Service {
 
         return newContentInstance;
     }
+
+    getAEs(): ApplicationEntityModel[] {
+        return this.db.AEs;
+    }
 }
