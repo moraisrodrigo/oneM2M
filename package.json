@@ -5,9 +5,6 @@
         "dev": "ts-node src/index.ts",
         "prod": "tsc && node dist/index.js"
     },
-    "engines": {
-        "node": ">=22.14.0"
-    },
     "devDependencies": {
         "@types/node": "^22.14.0",
         "ts-node": "^10.9.2",
