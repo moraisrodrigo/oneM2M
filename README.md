@@ -1,13 +1,21 @@
 # oneM2M
 
-### Build
+## Development
 
-```powershell
-$ yarn && yarn build
+### Install development dependencies
+
+```shell
+$ yarn install
 ```
 
-### Start
+### Run development onem2m
 
-```powershell
-$ yarn start
+```shell
+$ yarn dev
+```
+
+## Production
+
+```shell
+$ yarn prod
 ```
