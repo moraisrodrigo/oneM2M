@@ -1,4 +1,4 @@
-import { ApplicationEntity } from "../types/index.js";
+import { ApplicationEntity } from "../types/index";
 
 export class ApplicationEntityModel extends ApplicationEntity {
     constructor(resourceName: string, resourceId: string) {

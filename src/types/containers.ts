@@ -1,4 +1,4 @@
-import { ShortName, ResourceType } from "./index.js";
+import { ShortName, ResourceType } from "./index";
 
 export class Container {
     [ShortName.Type] = ResourceType.Container;
