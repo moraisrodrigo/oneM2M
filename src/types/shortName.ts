@@ -11,5 +11,4 @@ export enum ShortName {
     ContainerName = 'cn',
     ContentInstance = 'cin',
     ApplicationEntity = 'ae',
-    ResourceType = 'ty'
 }

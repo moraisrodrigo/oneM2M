@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { dirname } from 'path';
-import { DBType } from '../types/index.js';
-import { DB_FILE } from '../constants/index.js';
-import data from './db.json' assert { type: 'json' };
+import { DBType } from '../types/index';
+import { DB_FILE } from '../constants/index';
+import data from './db.json';
 
 export function getDB() {
     const defaultStructure: DBType = { AEs: [], containers: [], contentInstances: [] };
@@ -10,7 +10,7 @@ export function getDB() {
     if (!data) return defaultStructure;
 
     if (!data.AEs || !data.containers || !data.contentInstances) return defaultStructure;
-    
+
     return data as DBType;
 }
 

@@ -1,6 +1,7 @@
+#!/usr/bin/env -S node --experimental-strip-types --no-warnings=ExperimentalWarning
 import http from 'http';
-import { Service } from './services/index.js';
-import { Controller } from './controllers/index.js';
+import { Service } from './services/index';
+import { Controller } from './controllers/index';
 
 const controller = new Controller(new Service());
 

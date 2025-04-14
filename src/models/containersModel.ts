@@ -1,4 +1,4 @@
-import { Container, ShortName } from "../types/index.js";
+import { Container, ShortName } from "../types/index";
 
 export class ContainerModel extends Container {
     [ShortName.ParentId]!: string;
