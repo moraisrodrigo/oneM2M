@@ -1,7 +1,7 @@
 import { IncomingMessage, ServerResponse } from 'http';
 import { Service } from '../services/index';
 import { CustomHeaders, CustomAttributes, ResourceType, ShortName, StatusCode, HTTPStatusCodeMapping } from '../types/index';
-import { JSON_CONTENT_TYPE } from '../constants/index';
+import { CSE_NAME, JSON_CONTENT_TYPE } from '../constants/index';
 import {
     isApplicationEntityCreateRequest,
     isApplicationEntityGetRequest,
@@ -56,6 +56,60 @@ export class Controller {
     }
 
     private getAEs(req: IncomingMessage, res: ServerResponse) {
+        const origin = req.headers[CustomHeaders.Origin];
+        if (!origin) {
+            res.writeHead(400);
+            return res.end(JSON.stringify({ error: `Missing mandatory '${CustomHeaders.Origin}' header` }));
+        }
+
+        if (!req.url || !req.headers.host) {
+            res.writeHead(400);
+            return res.end(JSON.stringify({ error: 'Invalid URL' }));
+        }
+
+        // 2) Parse da URL e dos query-params
+        const url = new URL(req.url, `http://${req.headers.host}`);
+        const fu = url.searchParams.has('fu') ? Number(url.searchParams.get('fu')) : 2;  // default full
+        const rty = url.searchParams.has('rty') ? Number(url.searchParams.get('rty')) : ResourceType.ApplicationEntity;
+        const drt = url.searchParams.has('drt') ? Number(url.searchParams.get('drt')) : 1;  // não usado aqui
+
+        // 3) Se pedirem outro tipo de recurso, devolve vazio
+        if (rty !== ResourceType.ApplicationEntity) {
+            res.writeHead(HTTPStatusCodeMapping[StatusCode.OK], {
+                [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
+                [CustomHeaders.StatusCode]: StatusCode.OK,
+            });
+            // só uris ou só array vazio
+            if (fu === 1) {
+                return res.end(JSON.stringify({ [CustomAttributes.UriPath]: [] }));
+            } else {
+                return res.end(JSON.stringify({ [CustomAttributes.ApplicationEntity]: [] }));
+            }
+        }
+
+        // 4) Busca todos os AEs
+        const aes = this.service.getAEs();
+
+        // 5) Monta o payload conforme fu
+        let payload: any;
+        if (fu === 1) {
+            // só URIs
+            const uris = aes.map(ae => `/${CSE_NAME()}/${ae[ShortName.ResourceName]}`);
+
+            payload = { [CustomAttributes.UriPath]: uris };
+        } else {
+            // recursos completos
+            payload = { [CustomAttributes.ApplicationEntity]: aes };
+        }
+
+        // 6) Devolve 200 OK
+        res.writeHead(HTTPStatusCodeMapping[StatusCode.OK], {
+            [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
+            [CustomHeaders.StatusCode]: StatusCode.OK,
+        });
+        return res.end(JSON.stringify(payload));
+    }
+    private getContainers(req: IncomingMessage, res: ServerResponse) {
         return this.notImplemented(req, res);
     }
 

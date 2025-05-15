@@ -2,6 +2,7 @@ export enum CustomAttributes {
     ApplicationEntity = 'm2m:ae',
     Container = 'm2m:cnt',
     ContentInstance = 'm2m:cin',
+    UriPath = 'm2m:uril',
 }
 
 export enum HTTPStatusCode {

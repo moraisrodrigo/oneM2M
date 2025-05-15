@@ -1,5 +1,6 @@
 {
     "license": "MIT",
+    "version": "0.0.1",
     "name": "onem2m",
     "scripts": {
         "dev": "ts-node src/index.ts",
