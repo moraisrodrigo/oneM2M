@@ -7,6 +7,8 @@ import {
     isApplicationEntityGetRequest,
     isContainerCreateRequest,
     isContentInstanceCreateRequest,
+    isCreationRequest,
+    isRetrievalRequest,
 } from '../utils/index';
 
 export class Controller {
@@ -28,13 +30,9 @@ export class Controller {
                     return res.end(JSON.stringify({ error: `Missing mandatory '${CustomHeaders.Origin}' header` }));
                 }
 
-                if (isApplicationEntityCreateRequest(req)) return this.createAE(req, body, res);
+                if (isCreationRequest(req)) return this.creationRequest(req, body, res);
 
-                if (isContainerCreateRequest(req)) return this.createContainer(req, body, res);
-
-                if (isContentInstanceCreateRequest(req)) return this.createContentInstance(req, body, res);
-
-                if (isApplicationEntityGetRequest(req)) return this.getAEs(req, res);
+                if (isRetrievalRequest(req)) return this.retrievalRequest(req, res);
 
                 res.writeHead(404);
                 res.end(JSON.stringify({ error: 'Not Found' }));
@@ -44,6 +42,24 @@ export class Controller {
                 res.end(JSON.stringify({ error: error.message }));
             }
         });
+    }
+
+    private creationRequest(req: IncomingMessage, body: string, res: ServerResponse) {
+        if (isApplicationEntityCreateRequest(req)) return this.createAE(req, body, res);
+
+        if (isContainerCreateRequest(req)) return this.createContainer(req, body, res);
+
+        if (isContentInstanceCreateRequest(req)) return this.createContentInstance(req, body, res);
+
+        return this.notImplemented(req, res);
+    }
+
+    private retrievalRequest(req: IncomingMessage, res: ServerResponse) {
+        if (isApplicationEntityGetRequest(req)) return this.getAEs(req, res);
+
+        if (isContainerCreateRequest(req)) return this.getContainers(req, res);
+
+        return this.notImplemented(req, res);
     }
 
     private notImplemented(req: IncomingMessage, res: ServerResponse) {
@@ -71,7 +87,6 @@ export class Controller {
         const url = new URL(req.url, `http://${req.headers.host}`);
         const fu = url.searchParams.has('fu') ? Number(url.searchParams.get('fu')) : 2;  // default full
         const rty = url.searchParams.has('rty') ? Number(url.searchParams.get('rty')) : ResourceType.ApplicationEntity;
-        const drt = url.searchParams.has('drt') ? Number(url.searchParams.get('drt')) : 1;  // não usado aqui
 
         // 3) Se pedirem outro tipo de recurso, devolve vazio
         if (rty !== ResourceType.ApplicationEntity) {

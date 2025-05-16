@@ -2,13 +2,25 @@ import { IncomingMessage } from "http";
 import { ShortName } from "../types/index";
 import { CSE_NAME } from "../constants/index";
 
-export const isPostRequest = (req: IncomingMessage): boolean => req.method === 'POST';
+const isPostRequest = (req: IncomingMessage): boolean => req.method === 'POST';
 
-export const isGetRequest = (req: IncomingMessage): boolean => req.method === 'GET';
+const isGetRequest = (req: IncomingMessage): boolean => req.method === 'GET';
 
-export const isDeleteRequest = (req: IncomingMessage): boolean => req.method === 'DELETE';
+const isDeleteRequest = (req: IncomingMessage): boolean => req.method === 'DELETE';
 
-export const isPutRequest = (req: IncomingMessage): boolean => req.method === 'PUT';
+const isPutRequest = (req: IncomingMessage): boolean => req.method === 'PUT';
+
+export const isCreationRequest = (req: IncomingMessage): boolean => {
+    if (!req.url) return false;
+
+    return isPostRequest(req) && req.url.startsWith(`/${CSE_NAME()}`);
+}
+
+export const isRetrievalRequest = (req: IncomingMessage): boolean => {
+    if (!req.url) return false;
+
+    return isGetRequest(req) && req.url.startsWith(`/${CSE_NAME()}`);
+}
 
 export const isApplicationEntityCreateRequest = (req: IncomingMessage): boolean => {
     if (!isPostRequest(req)) return false;
@@ -41,34 +53,30 @@ export const isContentInstanceCreateRequest = (req: IncomingMessage): boolean =>
 }
 
 export const isApplicationEntityGetRequest = (req: IncomingMessage): boolean => {
-  // 1) Só GET
-  if (!req.url || !isGetRequest(req)) return false;
+    // Only allow GET requests
+    if (!req.url || !isGetRequest(req)) return false;
 
-  try {
-    // Precisamos de uma base completa pra usar URL
-    const base = `http://${req.headers.host}`;
-    const url = new URL(req.url, base);
+    try {
+        const baseUrl = `http://${req.headers.host}`;
+        const url = new URL(req.url, baseUrl);
 
-    // 2) Normaliza o pathname: remove eventual slash no fim
-    let pathname = url.pathname;
+        let pathname = url.pathname;
 
-    if (pathname.endsWith('/') && pathname.length > 1) {
-      pathname = pathname.slice(0, -1);
+        if (pathname.endsWith('/') && pathname.length > 1) pathname = pathname.slice(0, -1);
+
+        // Must be “/<CSE_NAME()>”
+        const expected = `/${CSE_NAME()}`;
+        if (pathname !== expected) return false;
+
+        // 4) Não há mais segmentos após o CSE root:
+        //    remove a primeira barra e vê se sobra só o nome
+        const segments = pathname.split('/').filter(Boolean);
+        if (segments.length !== 1) return false;
+
+        // 5) Query‐params são permitidos (fu, rty, drt, etc.), não precisam de validação aqui
+        return true;
+
+    } catch {
+        return false;
     }
-
-    // 3) Deve ser exatamente “/<CSE_NAME()>”
-    const expected = `/${CSE_NAME()}`;
-    if (pathname !== expected) return false;
-
-    // 4) Não há mais segmentos após o CSE root:
-    //    remove a primeira barra e vê se sobra só o nome
-    const segments = pathname.split('/').filter(Boolean);
-    if (segments.length !== 1) return false;
-
-    // 5) Query‐params são permitidos (fu, rty, drt, etc.), não precisam de validação aqui
-    return true;
-
-  } catch {
-    return false;
-  }
 };
