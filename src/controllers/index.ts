@@ -4,7 +4,6 @@ import { CustomHeaders, CustomAttributes, ResourceType, ShortName, StatusCode, H
 import { CSE_NAME, JSON_CONTENT_TYPE } from '../constants/index';
 import {
     isApplicationEntityCreateRequest,
-    isApplicationEntityGetRequest,
     isContainerCreateRequest,
     isContentInstanceCreateRequest,
     isCreationRequest,
