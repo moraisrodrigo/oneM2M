@@ -66,7 +66,7 @@ export class Controller {
 
     private retrievalRequest(req: IncomingMessage, res: ServerResponse) {
         if (req.url !== undefined) {
-            const parsedUrl = URL.parse(req.url);
+            const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
 
             if (parsedUrl !== null) {
                 const fu = parseInt(parsedUrl.searchParams.get("fu") ?? "");
