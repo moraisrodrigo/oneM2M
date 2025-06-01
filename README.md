@@ -11,14 +11,16 @@
 $ yarn install
 ```
 
-### Run development onem2m
-
+### Run development
+#### Default and with custom arguments
 ```shell
 $ yarn dev
+$ yarn dev --port 3001 --cse_name new-name
 ```
 
 ## Production
-
+#### Default and with custom arguments
 ```shell
 $ yarn prod
+$ yarn prod --port 3001 --cse_name new-name
 ```
