@@ -22,11 +22,7 @@ export const isRetrievalRequest = (req: IncomingMessage): boolean => {
     return isGetRequest(req) && req.url.startsWith(`/${CSE_NAME()}`);
 }
 
-export const isApplicationEntityCreateRequest = (req: IncomingMessage): boolean => {
-    if (!isPostRequest(req)) return false;
-
-    return req.url === `/${CSE_NAME()}/${ShortName.ApplicationEntity}`;
-}
+export const isApplicationEntityCreateRequest = (req: IncomingMessage): boolean => isPostRequest(req) && req.url === `/${CSE_NAME()}/${ShortName.ApplicationEntity}`;
 
 export const isContainerCreateRequest = (req: IncomingMessage): boolean => {
     if (!req.url || !isPostRequest(req)) return false;
