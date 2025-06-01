@@ -2,11 +2,6 @@ import { IncomingMessage } from "http";
 import { CustomHeaders, ResourceType, ShortName } from "../types/index";
 import { CSE_NAME } from "../constants/index";
 
-type RequestVerification = {
-    errorMessage: string | null;
-    isValid: boolean;
-}
-
 const isPostRequest = (req: IncomingMessage): boolean => req.method === 'POST';
 
 const isGetRequest = (req: IncomingMessage): boolean => req.method === 'GET';
