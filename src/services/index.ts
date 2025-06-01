@@ -1,6 +1,7 @@
 import { getDB, saveDB } from '../db/index';
 import { ShortName } from '../types/index';
 import { ApplicationEntityModel, ContainerModel, ContentInstanceModel } from '../models/index';
+import { getTimestamp } from '../utils/misc';
 
 export class Service {
     private db = getDB();
@@ -9,11 +10,11 @@ export class Service {
         saveDB(this.db);
     }
 
-    createAE(resourceName: string, resourceId: string): ApplicationEntityModel | null {
-        const applicationEntityFound = this.db.AEs.find((ae) => ae[ShortName.ResourceID] === resourceId || ae[ShortName.ResourceName] === resourceName);
+    createAE(resourceName: string): ApplicationEntityModel | null {
+        const applicationEntityFound = this.db.AEs.find((ae) => ae[ShortName.ResourceName] === resourceName);
         if (applicationEntityFound) return null;
 
-        const newApplicationEntity = new ApplicationEntityModel(resourceName, resourceId);
+        const newApplicationEntity = new ApplicationEntityModel(resourceName, getTimestamp());
         this.db.AEs.push(newApplicationEntity);
 
         this.save();

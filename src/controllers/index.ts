@@ -51,7 +51,6 @@ export class Controller {
 
                 if (isContentInstanceCreateRequest(request)) return this.createContentInstance(request, body, response, requestID as string);
 
-
                 if (isApplicationEntityGetRequest(request)) return this.getAEs(request, response, requestID as string);
 
                 if (isContainerCreateRequest(request)) return this.getContainers(request, response, requestID as string);
@@ -151,7 +150,7 @@ export class Controller {
             resourceName = `ae_${getTimestamp()}`;
         }
 
-        const createdAE = this.service.createAE(resourceName, requestID as string);
+        const createdAE = this.service.createAE(resourceName);
 
         if (!createdAE) {
             const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
