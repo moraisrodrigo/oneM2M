@@ -1,5 +1,5 @@
 import { IncomingMessage } from "http";
-import { ShortName } from "../types/index";
+import { ResourceType, ShortName } from "../types/index";
 import { CSE_NAME } from "../constants/index";
 
 const isPostRequest = (req: IncomingMessage): boolean => req.method === 'POST';
@@ -10,19 +10,17 @@ const isDeleteRequest = (req: IncomingMessage): boolean => req.method === 'DELET
 
 const isPutRequest = (req: IncomingMessage): boolean => req.method === 'PUT';
 
-export const isCreationRequest = (req: IncomingMessage): boolean => {
-    if (!req.url) return false;
+export const isCreationRequest = (req: IncomingMessage): boolean => !!req.url && isPostRequest(req) && req.url.startsWith(`/${CSE_NAME()}`);
 
-    return isPostRequest(req) && req.url.startsWith(`/${CSE_NAME()}`);
+export const isRetrievalRequest = (req: IncomingMessage): boolean => !!req.url && isGetRequest(req) && req.url.startsWith(`/${CSE_NAME()}`);
+
+export const isApplicationEntityCreateRequest = (req: IncomingMessage): boolean => {
+    const { [ShortName.Type]: type } = req.headers;
+
+    if (!type || Number(type) !== ResourceType.ApplicationEntity) return false;
+
+    return isPostRequest(req) && req.url === `/${CSE_NAME()}`;
 }
-
-export const isRetrievalRequest = (req: IncomingMessage): boolean => {
-    if (!req.url) return false;
-
-    return isGetRequest(req) && req.url.startsWith(`/${CSE_NAME()}`);
-}
-
-export const isApplicationEntityCreateRequest = (req: IncomingMessage): boolean => isPostRequest(req) && req.url === `/${CSE_NAME()}/${ShortName.ApplicationEntity}`;
 
 export const isContainerCreateRequest = (req: IncomingMessage): boolean => {
     if (!req.url || !isPostRequest(req)) return false;

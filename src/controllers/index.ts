@@ -275,6 +275,7 @@ export class Controller {
         }
 
         const { [CustomAttributes.ContentInstance]: contentInstanceBody } = JSON.parse(body);
+
         if (!contentInstanceBody) {
             const statusCode = StatusCode.BAD_REQUEST;
             res.writeHead(HTTPStatusCodeMapping[statusCode], {
@@ -284,10 +285,7 @@ export class Controller {
             return res.end(JSON.stringify({ error: `Missing (${CustomAttributes.ContentInstance})` }));
         }
 
-        const {
-            [ShortName.ResourceName]: resourceName,
-            [ShortName.Content]: content,
-        } = contentInstanceBody;
+        const { [ShortName.ResourceName]: resourceName, [ShortName.Content]: content } = contentInstanceBody;
 
         if (!resourceName) {
             const statusCode = StatusCode.BAD_REQUEST;
