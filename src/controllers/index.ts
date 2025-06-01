@@ -66,11 +66,35 @@ export class Controller {
     }
 
     private retrievalRequest(req: IncomingMessage, res: ServerResponse) {
-        if (isApplicationEntityGetRequest(req)) return this.getAEs(req, res);
+        if (req.url !== undefined) {
+            const parsedUrl = URL.parse(req.url);
 
-        if (isContainerCreateRequest(req)) return this.getContainers(req, res);
+            if (parsedUrl !== null) {
+                const fu = parseInt(parsedUrl.searchParams.get("fu") ?? "");
 
-        return this.notImplemented(req, res);
+                if (fu !== 1) {
+                    const statusCode = StatusCode.BAD_REQUEST;
+                    res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                        [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                        [CustomHeaders.StatusCode]: statusCode,
+                    });
+                    return res.end(JSON.stringify({ error: "Bad Request." }));
+                }
+
+                const rty = parseInt(parsedUrl.searchParams.get("rty") ?? "");
+
+                switch (rty) {
+                    case ResourceType.ApplicationEntity:
+                        return this.getAEs(req, res, fu);
+                    case ResourceType.Container:
+                        return this.getContainers(req, res, fu);
+                    case ResourceType.ContentInstance:
+                        return this.getContentInstances(req, res, fu);
+                    default:
+                        return this.notImplemented(req, res);
+                }
+            }
+        }
     }
 
     private notImplemented(req: IncomingMessage, res: ServerResponse) {
@@ -82,50 +106,12 @@ export class Controller {
         res.end();
     }
 
-    private getAEs(req: IncomingMessage, res: ServerResponse) {
-        const origin = req.headers[CustomHeaders.Origin];
-        if (!origin) {
-            const statusCode = StatusCode.BAD_REQUEST;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
-                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
-                [CustomHeaders.StatusCode]: statusCode,
-            });
-            return res.end(JSON.stringify({ error: `Missing mandatory '${CustomHeaders.Origin}' header` }));
-        }
-
-        if (!req.url || !req.headers.host) {
-            const statusCode = StatusCode.BAD_REQUEST;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
-                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
-                [CustomHeaders.StatusCode]: statusCode,
-            });
-            return res.end(JSON.stringify({ error: 'Invalid URL' }));
-        }
-
-        // Parse URL e query-params
-        const url = new URL(req.url, `http://${req.headers.host}`);
-        const fu = url.searchParams.has('fu') ? Number(url.searchParams.get('fu')) : 2;  // default fu = 2 (full resources)
-        const rty = url.searchParams.has('rty') ? Number(url.searchParams.get('rty')) : ResourceType.ApplicationEntity;
-
-        // 3) Se pedirem outro tipo de recurso, devolve vazio
-        if (rty !== ResourceType.ApplicationEntity) {
-            res.writeHead(HTTPStatusCodeMapping[StatusCode.OK], {
-                [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
-                [CustomHeaders.StatusCode]: StatusCode.OK,
-            });
-            // só uris ou só array vazio
-            if (fu === 1) {
-                return res.end(JSON.stringify({ [CustomAttributes.UriPath]: [] }));
-            } else {
-                return res.end(JSON.stringify({ [CustomAttributes.ApplicationEntity]: [] }));
-            }
-        }
-
+    private getAEs(req: IncomingMessage, res: ServerResponse, fu: Number) {
         // 4) Busca todos os AEs
         const aes = this.service.getAEs();
-
         // 5) Monta o payload conforme fu
         let payload: any;
+
         if (fu === 1) {
             // só URIs
             const uris = aes.map((applicationEntity) => `/${CSE_NAME()}/${applicationEntity[ShortName.ResourceName]}`);
@@ -142,10 +128,15 @@ export class Controller {
             [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
             [CustomHeaders.StatusCode]: statusCode,
         });
+
         return res.end(JSON.stringify(payload));
     }
 
-    private getContainers(req: IncomingMessage, res: ServerResponse) {
+    private getContainers(req: IncomingMessage, res: ServerResponse, fu: Number) {
+        return this.notImplemented(req, res);
+    }
+
+    private getContentInstances(req: IncomingMessage, res: ServerResponse, fu: Number) {
         return this.notImplemented(req, res);
     }
 
@@ -275,7 +266,6 @@ export class Controller {
         }
 
         const { [CustomAttributes.ContentInstance]: contentInstanceBody } = JSON.parse(body);
-
         if (!contentInstanceBody) {
             const statusCode = StatusCode.BAD_REQUEST;
             res.writeHead(HTTPStatusCodeMapping[statusCode], {
@@ -285,7 +275,10 @@ export class Controller {
             return res.end(JSON.stringify({ error: `Missing (${CustomAttributes.ContentInstance})` }));
         }
 
-        const { [ShortName.ResourceName]: resourceName, [ShortName.Content]: content } = contentInstanceBody;
+        const {
+            [ShortName.ResourceName]: resourceName,
+            [ShortName.Content]: content,
+        } = contentInstanceBody;
 
         if (!resourceName) {
             const statusCode = StatusCode.BAD_REQUEST;
