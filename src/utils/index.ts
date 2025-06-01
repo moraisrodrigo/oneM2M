@@ -1,5 +1,5 @@
 import { IncomingMessage } from "http";
-import { ResourceType, ShortName } from "../types/index";
+import { CustomHeaders, ResourceType, ShortName } from "../types/index";
 import { CSE_NAME } from "../constants/index";
 
 const isPostRequest = (req: IncomingMessage): boolean => req.method === 'POST';
@@ -42,33 +42,99 @@ export const isRetrievalRequest = (req: IncomingMessage): boolean => {
 };
 
 export const isApplicationEntityCreateRequest = (req: IncomingMessage): boolean => {
-    const { [ShortName.Type]: type } = req.headers;
+    // Only allow POST requests
+    if (!req.url || !isPostRequest(req)) return false;
 
-    if (!type || Number(type) !== ResourceType.ApplicationEntity) return false;
+    const isValidUrl = req.url === `/${CSE_NAME()}`;
 
-    return isPostRequest(req) && req.url === `/${CSE_NAME()}`;
+    // If URL is not exactly "/CSE_NAME", return false
+    if (!isValidUrl) return false
+
+    const { [CustomHeaders.ContentType]: contentType } = req.headers;
+
+    // If Content-Type header is not present, return false
+    if (!contentType) return false;
+
+    const contentTypes = contentType.replace(new RegExp(' ', 'g'), '').split(';');
+
+    // If Content-Type header does not contain at least two parts (content-type and type), return false
+    if (contentTypes.length < 2) return false;
+
+    const typeIdentifierAux = contentTypes[1].split('=');
+
+    // if typeIdentifierAux does not have exactly two parts (['ty', '2']), return false
+    if (typeIdentifierAux.length < 2) return false;
+
+    const typeIdentifier = typeIdentifierAux[0].toLowerCase();
+
+    const typeValue = typeIdentifierAux[1];
+
+    // If typeIdentifier is not 'ty' or typeValue is not '2', return false
+    return typeIdentifier === ShortName.Type && Number(typeValue) === ResourceType.ApplicationEntity;
 }
 
 export const isContainerCreateRequest = (req: IncomingMessage): boolean => {
+    // Only allow POST requests
     if (!req.url || !isPostRequest(req)) return false;
 
-    // '/onem2m/app_light/'
-    // parts = [ '', 'onem2m', 'app_light' ]
-    const urlParts = req.url.split('/');
+    const { [CustomHeaders.ContentType]: contentType } = req.headers;
 
-    if (urlParts[1] !== CSE_NAME()) return false;
+    // If Content-Type header is not present, return false
+    if (!contentType) return false;
 
-    return urlParts.length === 3;
+    const contentTypes = contentType.replace(new RegExp(' ', 'g'), '').split(';');
+
+    // If Content-Type header does not contain at least two parts (content-type and type), return false
+    if (contentTypes.length < 2) return false;
+
+    const typeIdentifierAux = contentTypes[1].split('=');
+
+    // if typeIdentifierAux does not have exactly two parts (['ty', '3']), return false
+    if (typeIdentifierAux.length < 2) return false;
+
+    const typeIdentifier = typeIdentifierAux[0].toLowerCase();
+
+    const typeValue = typeIdentifierAux[1];
+
+    // If type is not 'ty' or resourceType is not '3', return false
+    if (typeIdentifier !== ShortName.Type || Number(typeValue) !== ResourceType.Container) return false
+
+    // example: req.url = '/CSE_NAME/app_light/';
+    // urlParts = [ 'CSE_NAME', 'app_light' ];
+    const urlParts = req.url.split('/').filter(Boolean);
+
+    return urlParts.length === 2 && urlParts[0] === CSE_NAME();
 }
 
 export const isContentInstanceCreateRequest = (req: IncomingMessage): boolean => {
+    // Only allow POST requests
     if (!req.url || !isPostRequest(req)) return false;
 
-    // '/onem2m/app_light/'
-    // parts = [ '', 'onem2m', 'app_light' ]
-    const urlParts = req.url.split('/');
+    const { [CustomHeaders.ContentType]: contentType } = req.headers;
 
-    if (urlParts[1] !== CSE_NAME()) return false;
+    // If Content-Type header is not present, return false
+    if (!contentType) return false;
 
-    return urlParts.length === 3;
+    const contentTypes = contentType.replace(new RegExp(' ', 'g'), '').split(';');
+
+    // If Content-Type header does not contain at least two parts (content-type and type), return false
+    if (contentTypes.length < 2) return false;
+
+    const typeIdentifierAux = contentTypes[1].split('=');
+
+    // if typeIdentifierAux does not have exactly two parts (['ty', '3']), return false
+    if (typeIdentifierAux.length < 2) return false;
+
+    const typeIdentifier = typeIdentifierAux[0].toLowerCase();
+
+    const typeValue = typeIdentifierAux[1];
+
+    // If type is not 'ty' or resourceType is not '4', return false
+    if (typeIdentifier !== ShortName.Type || Number(typeValue) !== ResourceType.ContentInstance) return false
+
+    // example: req.url = '/CSE_NAME/app_light/status';
+    // urlParts = [ 'CSE_NAME', 'app_light', 'status' ];
+    const urlParts = req.url.split('/').filter(Boolean);
+
+    return urlParts.length === 3 && urlParts[0] === CSE_NAME();
 }
