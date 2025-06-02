@@ -1,7 +1,7 @@
-import { ApplicationEntityModel, ContainerModel, ContentInstanceModel } from "../models";
+import { ApplicationEntity, Container, ContentInstance } from "../types";
 
 export interface DBType {
-    AEs: Array<ApplicationEntityModel>;
-    containers: Array<ContainerModel>;
-    contentInstances: Array<ContentInstanceModel>;
+    AEs: Array<ApplicationEntity>;
+    containers: Array<Container>;
+    contentInstances: Array<ContentInstance>;
 }

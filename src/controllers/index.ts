@@ -57,6 +57,7 @@ export class Controller {
 
                 const statusCode = StatusCode.NOT_FOUND;
                 response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.RequestID]: requestID as string,
                     [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                     [CustomHeaders.StatusCode]: statusCode,
                 });
