@@ -70,16 +70,6 @@ export class Controller {
 
             if (parsedUrl !== null) {
                 const fu = parseInt(parsedUrl.searchParams.get("fu") ?? "");
-
-                if (fu !== 1) {
-                    const statusCode = StatusCode.BAD_REQUEST;
-                    res.writeHead(HTTPStatusCodeMapping[statusCode], {
-                        [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
-                        [CustomHeaders.StatusCode]: statusCode,
-                    });
-                    return res.end(JSON.stringify({ error: "Bad Request." }));
-                }
-
                 const rty = parseInt(parsedUrl.searchParams.get("rty") ?? "");
 
                 switch (rty) {
@@ -132,7 +122,29 @@ export class Controller {
     }
 
     private getContainers(req: IncomingMessage, res: ServerResponse, fu: Number) {
-        return this.notImplemented(req, res);
+        // 4) Busca todos os containers
+        const containers = this.service.getContainers();
+        // 5) Monta o payload conforme fu
+        let payload: any;
+
+        if (fu === 1) {
+            // só URIs
+            const uris = containers.map((container) => `/${CSE_NAME()}/${container[ShortName.ResourceName]}`);
+
+            payload = { [CustomAttributes.UriPath]: uris };
+        } else {
+            // recursos completos
+            payload = { [CustomAttributes.Container]: containers };
+        }
+
+        // 6) Devolve 200 OK
+        const statusCode = StatusCode.OK;
+        res.writeHead(HTTPStatusCodeMapping[statusCode], {
+            [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.Container}`,
+            [CustomHeaders.StatusCode]: statusCode,
+        });
+
+        return res.end(JSON.stringify(payload));
     }
 
     private getContentInstances(req: IncomingMessage, res: ServerResponse, fu: Number) {

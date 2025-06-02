@@ -65,4 +65,8 @@ export class Service {
     getAEs(): ApplicationEntityModel[] {
         return this.db.AEs;
     }
+
+    getContainers(): ContainerModel[] {
+        return this.db.containers;
+    }
 }
