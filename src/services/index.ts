@@ -69,4 +69,8 @@ export class Service {
     getContainers(): ContainerModel[] {
         return this.db.containers;
     }
+
+    getContentInstances(): ContentInstanceModel[] {
+        return this.db.contentInstances;
+    }
 }

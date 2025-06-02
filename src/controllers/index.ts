@@ -148,7 +148,29 @@ export class Controller {
     }
 
     private getContentInstances(req: IncomingMessage, res: ServerResponse, fu: Number) {
-        return this.notImplemented(req, res);
+        // 4) Busca todos os contentInstances
+        const contentInstances = this.service.getContentInstances();
+        // 5) Monta o payload conforme fu
+        let payload: any;
+
+        if (fu === 1) {
+            // só URIs
+            const uris = contentInstances.map((contentInstance) => `/${CSE_NAME()}/${contentInstance[ShortName.ResourceName]}`);
+
+            payload = { [CustomAttributes.UriPath]: uris };
+        } else {
+            // recursos completos
+            payload = { [CustomAttributes.ContentInstance]: contentInstances };
+        }
+
+        // 6) Devolve 200 OK
+        const statusCode = StatusCode.OK;
+        res.writeHead(HTTPStatusCodeMapping[statusCode], {
+            [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ContentInstance}`,
+            [CustomHeaders.StatusCode]: statusCode,
+        });
+
+        return res.end(JSON.stringify(payload));
     }
 
     private createAE(req: IncomingMessage, body: string, res: ServerResponse) {
