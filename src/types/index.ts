@@ -6,7 +6,12 @@ import { ResourceType } from "./resourceTypes";
 import { DBType } from "./db";
 import { GeneralError } from "./errors";
 import { CustomHeaders } from "./headers";
-import { CustomAttributes } from "./responses";
+import {
+    CustomAttributes,
+    HTTPStatusCode,
+    HTTPStatusCodeMapping,
+    StatusCode,
+} from "./responses";
 
 export {
     ShortName,
@@ -18,4 +23,7 @@ export {
     GeneralError,
     CustomHeaders,
     CustomAttributes,
+    HTTPStatusCode,
+    StatusCode,
+    HTTPStatusCodeMapping,
 }

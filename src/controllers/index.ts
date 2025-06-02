@@ -1,173 +1,292 @@
 import { IncomingMessage, ServerResponse } from 'http';
 import { Service } from '../services/index';
-import { CustomHeaders, CustomAttributes, ResourceType, ShortName } from '../types/index';
-import { JSON_CONTENT_TYPE } from '../constants/index';
+import { CustomHeaders, CustomAttributes, ResourceType, ShortName, StatusCode, HTTPStatusCodeMapping } from '../types/index';
+import { CSE_NAME, JSON_CONTENT_TYPE } from '../constants/index';
 import {
     isApplicationEntityCreateRequest,
+    isApplicationEntityGetRequest,
     isContainerCreateRequest,
     isContentInstanceCreateRequest,
 } from '../utils/index';
+import { getTimestamp } from '../utils/misc';
 
 export class Controller {
     constructor(private service: Service) { }
 
-    handleRequest(req: IncomingMessage, res: ServerResponse): void {
+    handleRequest(request: IncomingMessage, response: ServerResponse): void {
         let body = '';
 
-        req.on('data', chunk => { body += chunk.toString(); });
+        request.on('data', (chunk) => { body += chunk.toString(); });
 
-        req.on('end', () => {
-            res.setHeader(CustomHeaders.ContentType, 'application/json');
+        request.on('end', () => {
+            response.setHeader(CustomHeaders.ContentType, 'application/json');
 
             try {
-                const origin = req.headers[CustomHeaders.Origin];
+                const requestID = request.headers[CustomHeaders.RequestID];
 
-                if (!origin) {
-                    res.writeHead(400);
-                    return res.end(JSON.stringify({ error: `Missing mandatory '${CustomHeaders.Origin}' header` }));
+                if (!requestID) {
+                    const statusCode = StatusCode.BAD_REQUEST;
+                    response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                        [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                        [CustomHeaders.StatusCode]: statusCode,
+                    });
+                    return response.end(JSON.stringify({ error: `Missing mandatory '${CustomHeaders.RequestID}' header` }));
                 }
 
-                if (isApplicationEntityCreateRequest(req)) return this.createAE(req, body, res);
+                const origin = request.headers[CustomHeaders.Origin] as string || null;
 
-                if (isContainerCreateRequest(req)) return this.createContainer(req, body, res);
+                // The Origin Header is mandatory for all requests except creation of Application Entities
+                if (isApplicationEntityCreateRequest(request)) return this.createAE(body, response, requestID as string);
 
-                if (isContentInstanceCreateRequest(req)) return this.createContentInstance(req, body, res);
+                if (!origin) {
+                    const statusCode = StatusCode.BAD_REQUEST;
+                    response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                        [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                        [CustomHeaders.StatusCode]: statusCode,
+                    });
+                    return response.end(JSON.stringify({ error: `Missing mandatory '${CustomHeaders.Origin}' header` }));
+                }
 
-                res.writeHead(404);
-                res.end(JSON.stringify({ error: 'Not Found' }));
+                if (isContainerCreateRequest(request)) return this.createContainer(request, body, response, requestID as string);
+
+                if (isContentInstanceCreateRequest(request)) return this.createContentInstance(request, body, response, requestID as string);
+
+                if (isApplicationEntityGetRequest(request)) return this.getAEs(request, response, requestID as string);
+
+                if (isContainerCreateRequest(request)) return this.getContainers(request, response, requestID as string);
+
+                const statusCode = StatusCode.NOT_FOUND;
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.RequestID]: requestID as string,
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                response.end(JSON.stringify({ error: 'Not Found' }));
             } catch (error: any) {
-                res.writeHead(500);
-
-                res.end(JSON.stringify({ error: error.message }));
+                const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                response.end(JSON.stringify({ error: error?.message || 'Internal Server Error' }));
             }
         });
     }
 
-    private createAE(req: IncomingMessage, body: string, res: ServerResponse) {
-        const resourceId = req.headers[CustomHeaders.ResourceID];
-        if (!resourceId) {
-            res.writeHead(400);
-            return res.end(JSON.stringify({ error: `Missing mandatory '${CustomHeaders.ResourceID}' header` }));
+    private notImplemented(request: IncomingMessage, response: ServerResponse, requestId: string) {
+        const statusCode = StatusCode.NOT_IMPLEMENTED;
+        response.writeHead(HTTPStatusCodeMapping[statusCode], {
+            [CustomHeaders.RequestID]: requestId,
+            [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+            [CustomHeaders.StatusCode]: statusCode,
+        });
+        response.end();
+    }
+
+    private getAEs(request: IncomingMessage, response: ServerResponse, requestId: string) {
+        if (!request.url || !request.headers.host) {
+            const statusCode = StatusCode.BAD_REQUEST;
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestId,
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return response.end(JSON.stringify({ error: 'Invalid URL' }));
         }
 
-        const { [ShortName.ResourceName]: resourceName } = JSON.parse(body);
+        // Parse URL e query-params
+        const url = new URL(request.url, `http://${request.headers.host}`);
+        const fu = url.searchParams.has('fu') ? Number(url.searchParams.get('fu')) : 2;  // default fu = 2 (full resources)
+        const rty = url.searchParams.has('rty') ? Number(url.searchParams.get('rty')) : ResourceType.ApplicationEntity;
+
+        // 3) Se pedirem outro tipo de recurso, devolve vazio
+        if (rty !== ResourceType.ApplicationEntity) {
+            response.writeHead(HTTPStatusCodeMapping[StatusCode.OK], {
+                [CustomHeaders.RequestID]: requestId,
+                [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
+                [CustomHeaders.StatusCode]: StatusCode.OK,
+            });
+            // só uris ou só array vazio
+            if (fu === 1) {
+                return response.end(JSON.stringify({ [CustomAttributes.UriPath]: [] }));
+            } else {
+                return response.end(JSON.stringify({ [CustomAttributes.ApplicationEntity]: [] }));
+            }
+        }
+
+        // 4) Busca todos os AEs
+        const aes = this.service.getAEs();
+
+        // 5) Monta o payload conforme fu
+        let payload: any;
+        if (fu === 1) {
+            // só URIs
+            const uris = aes.map((applicationEntity) => `/${CSE_NAME()}/${applicationEntity[ShortName.ResourceName]}`);
+
+            payload = { [CustomAttributes.UriPath]: uris };
+        } else {
+            // recursos completos
+            payload = { [CustomAttributes.ApplicationEntity]: aes };
+        }
+
+        // 6) Devolve 200 OK
+        const statusCode = StatusCode.OK;
+        response.writeHead(HTTPStatusCodeMapping[statusCode], {
+            [CustomHeaders.RequestID]: requestId,
+            [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
+            [CustomHeaders.StatusCode]: statusCode,
+        });
+        return response.end(JSON.stringify(payload));
+    }
+
+    private getContainers(request: IncomingMessage, response: ServerResponse, requestId: string) {
+        return this.notImplemented(request, response, requestId);
+    }
+
+    private createAE(body: string, response: ServerResponse, requestID: string) {
+        let { [ShortName.ResourceName]: resourceName } = JSON.parse(body);
 
         if (!resourceName) {
-            res.writeHead(400);
-            return res.end(JSON.stringify({ error: `Missing (${ShortName.ResourceName})` }));
+            // make a unique resource name if not provided
+            resourceName = `ae_${getTimestamp()}`;
         }
 
-        const createdAE = this.service.createAE(resourceName, resourceId as string);
+        const createdAE = this.service.createAE(resourceName);
 
         if (!createdAE) {
-            res.writeHead(400);
-            return res.end(JSON.stringify({ error: 'Something went wrong while creating AE' }));
+            const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestID,
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return response.end(JSON.stringify({ error: 'Something went wrong while creating AE' }));
         }
 
-        res.writeHead(201, {
-            [CustomHeaders.ResourceID]: createdAE[ShortName.ResourceID],
+        response.writeHead(201, {
+            [CustomHeaders.RequestID]: requestID,
             [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
         });
 
-        return res.end(JSON.stringify({ [CustomAttributes.ApplicationEntity]: createdAE }));
+        return response.end(JSON.stringify({ [CustomAttributes.ApplicationEntity]: createdAE }));
     }
 
-    private createContainer(req: IncomingMessage, body: string, res: ServerResponse) {
-        const resourceId = req.headers[CustomHeaders.ResourceID];
-        if (!resourceId) {
-            res.writeHead(400);
-            return res.end(JSON.stringify({ error: `Missing mandatory '${CustomHeaders.ResourceID}' header` }));
-        }
-
-        if (!req.url) {
-            res.writeHead(400);
-            return res.end(JSON.stringify({ error: 'Invalid URL' }));
+    private createContainer(request: IncomingMessage, body: string, response: ServerResponse, requestID: string) {
+        if (!request.url) {
+            const statusCode = StatusCode.BAD_REQUEST;
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestID,
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return response.end(JSON.stringify({ error: 'Invalid URL' }));
         }
 
         const { [CustomAttributes.Container]: containerBody } = JSON.parse(body);
         if (!containerBody) {
-            res.writeHead(400);
-            return res.end(JSON.stringify({ error: `Missing (${CustomAttributes.Container})` }));
+            const statusCode = StatusCode.BAD_REQUEST;
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestID,
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return response.end(JSON.stringify({ error: `Missing (${CustomAttributes.Container})` }));
         }
 
         const { [ShortName.ResourceName]: resourceName } = containerBody;
         if (!resourceName) {
-            res.writeHead(400);
-            return res.end(JSON.stringify({ error: `Missing (${ShortName.ResourceName}) in (${CustomAttributes.Container})` }));
+            const statusCode = StatusCode.BAD_REQUEST;
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestID,
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return response.end(JSON.stringify({ error: `Missing (${ShortName.ResourceName}) in (${CustomAttributes.Container})` }));
         }
 
         // '/onem2m/app_light'
-        const parts = req.url.split('/');
+        const parts = request.url.split('/');
         // parts = [ '', 'onem2m', 'app_light' ]
         // parts[2] = 'app_light' (eg: app_light is the application entity name)
-        const createdContainer = this.service.createContainer(resourceName, resourceId as string, parts[2]);
+        const createdContainer = this.service.createContainer(resourceName, requestID, parts[2]);
 
         if (!createdContainer) {
-            res.writeHead(400);
-            return res.end(JSON.stringify({ error: 'Something went wrong while creating Container' }));
+            const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestID,
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return response.end(JSON.stringify({ error: 'Something went wrong while creating Container' }));
         }
 
-        res.writeHead(201, {
-            [CustomHeaders.ResourceID]: createdContainer[ShortName.ResourceID],
+        response.writeHead(201, {
+            [CustomHeaders.RequestID]: requestID,
             [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.Container}`,
         });
 
-        return res.end(JSON.stringify({ [CustomAttributes.Container]: createdContainer }));
+        return response.end(JSON.stringify({ [CustomAttributes.Container]: createdContainer }));
     }
 
-    private createContentInstance(req: IncomingMessage, body: string, res: ServerResponse) {
-        const resourceId = req.headers[CustomHeaders.ResourceID];
-
-        if (!resourceId) {
-            res.writeHead(400);
-            return res.end(JSON.stringify({ error: `Missing mandatory '${CustomHeaders.ResourceID}' header` }));
-        }
-
-        if (!req.url) {
-            res.writeHead(400);
-            return res.end(JSON.stringify({ error: 'Invalid URL' }));
-        }
-
+    private createContentInstance(request: IncomingMessage, body: string, response: ServerResponse, requestID: string) {
         const { [CustomAttributes.ContentInstance]: contentInstanceBody } = JSON.parse(body);
+
         if (!contentInstanceBody) {
-            res.writeHead(400);
-            return res.end(JSON.stringify({ error: `Missing (${CustomAttributes.ContentInstance})` }));
+            const statusCode = StatusCode.BAD_REQUEST;
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+                [CustomHeaders.RequestID]: requestID,
+            });
+            return response.end(JSON.stringify({ error: `Missing (${CustomAttributes.ContentInstance})` }));
         }
 
-        const {
-            [ShortName.ResourceName]: resourceName,
-            [ShortName.Content]: content,
-        } = contentInstanceBody;
+        const { [ShortName.ResourceName]: resourceName, [ShortName.Content]: content } = contentInstanceBody;
 
         if (!resourceName) {
-            res.writeHead(400);
-            return res.end(JSON.stringify({ error: `Missing (${ShortName.ResourceName}) in (${CustomAttributes.ContentInstance})` }));
+            const statusCode = StatusCode.BAD_REQUEST;
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestID,
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return response.end(JSON.stringify({ error: `Missing (${ShortName.ResourceName}) in (${CustomAttributes.ContentInstance})` }));
         }
 
         if (!content) {
-            res.writeHead(400);
-            return res.end(JSON.stringify({ error: `Missing (${ShortName.Content}) in (${CustomAttributes.ContentInstance})` }));
+            const statusCode = StatusCode.BAD_REQUEST;
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestID,
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return response.end(JSON.stringify({ error: `Missing (${ShortName.Content}) in (${CustomAttributes.ContentInstance})` }));
         }
 
-        // req.url = '/onem2m/app_light/status'
-        const parts = req.url.split('/');
+        // request.url = '/onem2m/app_light/status'
+        const url = request.url!;
+        const parts = url.split('/');
         // parts = [ '', 'onem2m', 'app_light', 'status' ]
         // parts[3] = 'status' (eg: status is the container name)
         const containerName = parts[3];
         // parts[2] = 'app_light' (eg: app_light is the application entity name)
         const applicationEntityName = parts[2];
-        const createdContentInstance = this.service.createContentInstance(resourceName, resourceId as string, containerName, applicationEntityName, content);
+        const createdContentInstance = this.service.createContentInstance(resourceName, requestID, containerName, applicationEntityName, content);
 
         if (!createdContentInstance) {
-            res.writeHead(400);
-            return res.end(JSON.stringify({ error: 'Something went wrong while creating content Instance' }));
+            const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return response.end(JSON.stringify({ error: 'Something went wrong while creating content Instance' }));
         }
 
-        res.writeHead(201, {
-            [CustomHeaders.ResourceID]: createdContentInstance[ShortName.ResourceID],
+        response.writeHead(201, {
+            [CustomHeaders.RequestID]: requestID,
             [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ContentInstance}`,
         });
 
-        return res.end(JSON.stringify({ [CustomAttributes.ContentInstance]: createdContentInstance }));
+        return response.end(JSON.stringify({ [CustomAttributes.ContentInstance]: createdContentInstance }));
     }
 }
