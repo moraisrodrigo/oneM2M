@@ -78,6 +78,10 @@ export class Service {
         return this.db.containers;
     }
 
+    getContainerByResourceId(ri: String): ContainerModel|undefined {
+        return this.db.containers.find((container) => container.ri === ri);
+    }
+
     getContentInstances(): ContentInstanceModel[] {
         return this.db.contentInstances;
     }
