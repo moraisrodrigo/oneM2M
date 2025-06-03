@@ -78,11 +78,19 @@ export class Service {
         return this.db.containers;
     }
 
+    getContainersByParentId(pi: String): ContainerModel[] {
+        return this.db.containers.filter(container => container[ShortName.ParentId] === pi);
+    }
+
     getContainerByResourceId(ri: String): ContainerModel|undefined {
-        return this.db.containers.find((container) => container.ri === ri);
+        return this.db.containers.find((container) => container[ShortName.ResourceID] === ri);
     }
 
     getContentInstances(): ContentInstanceModel[] {
         return this.db.contentInstances;
+    }
+
+    getContentInstancesByParentId(pi: String): ContentInstanceModel[] {
+        return this.db.contentInstances.filter(contentInstance => contentInstance[ShortName.ParentId] === pi);
     }
 }

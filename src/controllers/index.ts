@@ -10,6 +10,7 @@ import {
     isDiscoveryRequest,
     isApplicationEntityRetrieveRequest,
 } from '../utils/index';
+import { ContentInstanceModel } from '../models';
 
 export class Controller {
     constructor(private service: Service) { }
@@ -239,20 +240,50 @@ export class Controller {
 
             const segments = pathname.split('/').filter(Boolean);
             const rn = segments[1];
+            const rcn = parseInt(url.searchParams.get(ShortName.ResultContent) ?? "");
 
             // Busca a AE pelo resourceName
             let ae = this.service.getAE(rn);
-
             if (ae === undefined) {
                 const statusCode = StatusCode.NOT_FOUND;
                 res.writeHead(HTTPStatusCodeMapping[statusCode], {
                     [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                     [CustomHeaders.StatusCode]: statusCode,
                 });
-                res.end(JSON.stringify({ error: 'Not Found' }));
+                return res.end(JSON.stringify({ error: 'Not Found' }));
             }
 
-            let payload = { [CustomAttributes.ApplicationEntity]: ae };
+            let payload = null;
+
+            if (rcn === 4) {
+                // get child resources
+                let containers = this.service.getContainersByParentId(ae[ShortName.ResourceID]);
+
+                if (containers.length > 0) {
+                    let contentInstances: ContentInstanceModel[] = [];
+
+                    containers.forEach(container => {
+                        contentInstances.push(...this.service.getContentInstancesByParentId(container[ShortName.ResourceID]));
+                    });
+
+                    if (containers.length > 0) {
+                        payload = {
+                            [CustomAttributes.ApplicationEntity]: ae,
+                            [CustomAttributes.Container]: containers,
+                            [CustomAttributes.ContentInstance]: contentInstances,
+                        };
+                    } else {
+                        payload = {
+                            [CustomAttributes.ApplicationEntity]: ae,
+                            [CustomAttributes.Container]: containers,
+                        };
+
+                    }
+                }
+            } else {
+                payload = { [CustomAttributes.ApplicationEntity]: ae };
+            }
+
 
             // 6) Devolve 200 OK
             const statusCode = StatusCode.OK;
