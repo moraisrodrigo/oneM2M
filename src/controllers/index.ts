@@ -7,7 +7,8 @@ import {
     isContainerCreateRequest,
     isContentInstanceCreateRequest,
     isCreationRequest,
-    isRetrievalRequest,
+    isDiscoveryRequest,
+    isApplicationEntityRetrieveRequest,
 } from '../utils/index';
 
 export class Controller {
@@ -35,7 +36,9 @@ export class Controller {
 
                 if (isCreationRequest(req)) return this.creationRequest(req, body, res);
 
-                if (isRetrievalRequest(req)) return this.retrievalRequest(req, res);
+                if (isDiscoveryRequest(req)) return this.discoveryRequest(req, res);
+
+                if (isApplicationEntityRetrieveRequest(req)) return this.getAE(req, res);
 
                 const statusCode = StatusCode.NOT_FOUND;
                 res.writeHead(HTTPStatusCodeMapping[statusCode], {
@@ -64,7 +67,7 @@ export class Controller {
         return this.notImplemented(req, res);
     }
 
-    private retrievalRequest(req: IncomingMessage, res: ServerResponse) {
+    private discoveryRequest(req: IncomingMessage, res: ServerResponse) {
         if (req.url !== undefined) {
             const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
 
@@ -119,6 +122,46 @@ export class Controller {
         });
 
         return res.end(JSON.stringify(payload));
+    }
+
+    private getAE(req: IncomingMessage, res: ServerResponse) {
+
+        if (req.url) {
+
+            const baseUrl = `http://${req.headers.host}`;
+            const url = new URL(req.url, baseUrl);
+
+            let pathname = url.pathname;
+
+            if (pathname.endsWith('/') && pathname.length > 1) pathname = pathname.slice(0, -1);
+
+            const segments = pathname.split('/').filter(Boolean);
+            const rn = segments[1];
+
+            // Busca a AE pelo resourceName
+            let ae = this.service.getAE(rn);
+
+            if (ae === undefined) {
+                const statusCode = StatusCode.NOT_FOUND;
+                res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                res.end(JSON.stringify({ error: 'Not Found' }));
+            }
+
+            let payload = { [CustomAttributes.ApplicationEntity]: ae };
+
+            // 6) Devolve 200 OK
+            const statusCode = StatusCode.OK;
+            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+
+            return res.end(JSON.stringify(payload));
+        } else {
+        }
     }
 
     private getContainers(req: IncomingMessage, res: ServerResponse, fu: Number) {

@@ -12,7 +12,7 @@ const isPutRequest = (req: IncomingMessage): boolean => req.method === 'PUT';
 
 export const isCreationRequest = (req: IncomingMessage): boolean => !!req.url && isPostRequest(req) && req.url.startsWith(`/${CSE_NAME()}`);
 
-export const isRetrievalRequest = (req: IncomingMessage): boolean => {
+export const isDiscoveryRequest = (req: IncomingMessage): boolean => {
     // Only allow GET requests
     if (!req.url || !isGetRequest(req)) return false;
 
@@ -138,3 +138,31 @@ export const isContentInstanceCreateRequest = (req: IncomingMessage): boolean =>
 
     return urlParts.length === 3 && urlParts[0] === CSE_NAME();
 }
+
+export const isApplicationEntityRetrieveRequest = (req: IncomingMessage): boolean => {
+    // Only allow GET requests
+    if (!req.url || !isGetRequest(req)) return false;
+
+    try {
+        const baseUrl = `http://${req.headers.host}`;
+        const url = new URL(req.url, baseUrl);
+
+        let pathname = url.pathname;
+
+        if (pathname.endsWith('/') && pathname.length > 1) pathname = pathname.slice(0, -1);
+
+        const segments = pathname.split('/').filter(Boolean);
+
+        // Must be “/<CSE_NAME()>”
+        const expected = `${CSE_NAME()}`;
+        if (segments[0] !== expected) return false;
+
+        if(segments.length !== 2) return false;
+
+        // 5) Query‐params são permitidos (fu, rty, drt, etc.), não precisam de validação aqui
+        return true;
+
+    } catch {
+        return false;
+    }
+};

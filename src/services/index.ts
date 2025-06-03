@@ -66,6 +66,10 @@ export class Service {
         return this.db.AEs;
     }
 
+    getAE(rn: String): ApplicationEntityModel|undefined {
+        return this.db.AEs.find((ae) => ae.rn === rn);
+    }
+
     getContainers(): ContainerModel[] {
         return this.db.containers;
     }
