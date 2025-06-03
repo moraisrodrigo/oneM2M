@@ -1,5 +1,20 @@
 {
-  "AEs": [],
-  "containers": [],
+  "AEs": [
+    {
+      "ty": 2,
+      "rn": "Light",
+      "ri": "1",
+      "ct": "20250603T224315"
+    }
+  ],
+  "containers": [
+    {
+      "ty": 3,
+      "rn": "status",
+      "ri": "1",
+      "ct": "20250603T224320",
+      "pi": "1"
+    }
+  ],
   "contentInstances": []
 }

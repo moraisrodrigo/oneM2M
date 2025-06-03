@@ -70,6 +70,10 @@ export class Service {
         return this.db.AEs.find((ae) => ae.rn === rn);
     }
 
+    getAEByResourceId(ri: String): ApplicationEntityModel|undefined {
+        return this.db.AEs.find((ae) => ae.ri === ri);
+    }
+
     getContainers(): ContainerModel[] {
         return this.db.containers;
     }

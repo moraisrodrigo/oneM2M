@@ -172,7 +172,10 @@ export class Controller {
 
         if (fu === 1) {
             // só URIs
-            const uris = containers.map((container) => `/${CSE_NAME()}/${container[ShortName.ResourceName]}`);
+            const uris = containers.map((container) => {
+                let ae = this.service.getAEByResourceId(container[ShortName.ParentId]);
+                if (ae !== undefined) return `/${CSE_NAME()}/${ae[ShortName.ResourceName]}/${container[ShortName.ResourceName]}`;
+            });
 
             payload = { [CustomAttributes.UriPath]: uris };
         } else {
