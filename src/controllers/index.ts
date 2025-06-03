@@ -38,7 +38,7 @@ export class Controller {
 
                 if (isDiscoveryRequest(req)) return this.discoveryRequest(req, res);
 
-                if (isApplicationEntityRetrieveRequest(req)) return this.getAE(req, res);
+                if (isApplicationEntityRetrieveRequest(req)) return this.retrieveAE(req, res);
 
                 const statusCode = StatusCode.NOT_FOUND;
                 res.writeHead(HTTPStatusCodeMapping[statusCode], {
@@ -72,10 +72,10 @@ export class Controller {
             const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
 
             if (parsedUrl !== null) {
-                const fu = parseInt(parsedUrl.searchParams.get("fu") ?? "");
-                const rty = parseInt(parsedUrl.searchParams.get("rty") ?? "");
+                const fu = parseInt(parsedUrl.searchParams.get(ShortName.FilterUsage) ?? "");
+                const ty = parseInt(parsedUrl.searchParams.get(ShortName.Type) ?? "");
 
-                switch (rty) {
+                switch (ty) {
                     case ResourceType.ApplicationEntity:
                         return this.getAEs(req, res, fu);
                     case ResourceType.Container:
@@ -122,46 +122,6 @@ export class Controller {
         });
 
         return res.end(JSON.stringify(payload));
-    }
-
-    private getAE(req: IncomingMessage, res: ServerResponse) {
-
-        if (req.url) {
-
-            const baseUrl = `http://${req.headers.host}`;
-            const url = new URL(req.url, baseUrl);
-
-            let pathname = url.pathname;
-
-            if (pathname.endsWith('/') && pathname.length > 1) pathname = pathname.slice(0, -1);
-
-            const segments = pathname.split('/').filter(Boolean);
-            const rn = segments[1];
-
-            // Busca a AE pelo resourceName
-            let ae = this.service.getAE(rn);
-
-            if (ae === undefined) {
-                const statusCode = StatusCode.NOT_FOUND;
-                res.writeHead(HTTPStatusCodeMapping[statusCode], {
-                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
-                    [CustomHeaders.StatusCode]: statusCode,
-                });
-                res.end(JSON.stringify({ error: 'Not Found' }));
-            }
-
-            let payload = { [CustomAttributes.ApplicationEntity]: ae };
-
-            // 6) Devolve 200 OK
-            const statusCode = StatusCode.OK;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
-                [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
-                [CustomHeaders.StatusCode]: statusCode,
-            });
-
-            return res.end(JSON.stringify(payload));
-        } else {
-        }
     }
 
     private getContainers(req: IncomingMessage, res: ServerResponse, fu: Number) {
@@ -266,6 +226,50 @@ export class Controller {
         });
 
         return res.end(JSON.stringify({ [CustomAttributes.ApplicationEntity]: createdAE }));
+    }
+
+    private retrieveAE(req: IncomingMessage, res: ServerResponse) {
+        if (req.url) {
+            const baseUrl = `http://${req.headers.host}`;
+            const url = new URL(req.url, baseUrl);
+
+            let pathname = url.pathname;
+
+            if (pathname.endsWith('/') && pathname.length > 1) pathname = pathname.slice(0, -1);
+
+            const segments = pathname.split('/').filter(Boolean);
+            const rn = segments[1];
+
+            // Busca a AE pelo resourceName
+            let ae = this.service.getAE(rn);
+
+            if (ae === undefined) {
+                const statusCode = StatusCode.NOT_FOUND;
+                res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                res.end(JSON.stringify({ error: 'Not Found' }));
+            }
+
+            let payload = { [CustomAttributes.ApplicationEntity]: ae };
+
+            // 6) Devolve 200 OK
+            const statusCode = StatusCode.OK;
+            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+
+            return res.end(JSON.stringify(payload));
+        } else {
+            const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return res.end(JSON.stringify({ error: 'Something went wrong while retrieving the AE' }));
+        }
     }
 
     private createContainer(req: IncomingMessage, body: string, res: ServerResponse) {
