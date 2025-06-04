@@ -10,6 +10,7 @@ import {
     isDiscoveryRequest,
     isApplicationEntityRetrieveRequest,
     isContainerRetrieveRequest,
+    isContentInstanceRetrieveRequest,
 } from '../utils/index';
 import { ContentInstanceModel } from '../models';
 
@@ -43,6 +44,8 @@ export class Controller {
                 if (isApplicationEntityRetrieveRequest(req)) return this.retrieveAE(req, res);
 
                 if (isContainerRetrieveRequest(req)) return this.retrieveContainer(req, res);
+
+                if (isContentInstanceRetrieveRequest(req)) return this.retrieveContentInstance(req, res);
 
                 const statusCode = StatusCode.NOT_FOUND;
                 res.writeHead(HTTPStatusCodeMapping[statusCode], {
@@ -509,5 +512,69 @@ export class Controller {
         });
 
         return res.end(JSON.stringify({ [CustomAttributes.ContentInstance]: createdContentInstance }));
+    }
+
+    private retrieveContentInstance(req: IncomingMessage, res: ServerResponse) {
+        if (req.url) {
+            const baseUrl = `http://${req.headers.host}`;
+            const url = new URL(req.url, baseUrl);
+
+            let pathname = url.pathname;
+
+            if (pathname.endsWith('/') && pathname.length > 1) pathname = pathname.slice(0, -1);
+
+            const segments = pathname.split('/').filter(Boolean);
+            const rn = segments[2];
+            const latest = (segments[3] === 'latest');
+
+            let container = this.service.getContainer(rn);
+
+            if (container === undefined) {
+                const statusCode = StatusCode.NOT_FOUND;
+                res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                return res.end(JSON.stringify({ error: 'Not Found' }));
+            }
+
+            let contentInstances = this.service.getContentInstancesByParentId(container[ShortName.ResourceID]);
+
+            if (contentInstances === undefined) {
+                const statusCode = StatusCode.NOT_FOUND;
+                res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                return res.end(JSON.stringify({ error: 'Not Found' }));
+            }
+
+            let contentInstance = contentInstances
+                .sort((a, b) => b.ct.localeCompare(a.ct))[0];
+
+            if (segments[3] !== 'latest') {
+                contentInstance = contentInstances.sort((a, b) => a.ct.localeCompare(b.ct))[0];
+            }
+
+            let payload = {
+                [CustomAttributes.ContentInstance]: contentInstance
+            };
+
+            // 6) Devolve 200 OK
+            const statusCode = StatusCode.OK;
+            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+
+            return res.end(JSON.stringify(payload));
+        } else {
+            const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return res.end(JSON.stringify({ error: 'Something went wrong while retrieving the content instance' }));
+        }
     }
 }
