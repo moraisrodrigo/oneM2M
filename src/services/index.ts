@@ -78,6 +78,10 @@ export class Service {
         return this.db.containers;
     }
 
+    getContainer(rn: String): ContainerModel|undefined {
+        return this.db.containers.find((container) => container.rn === rn);
+    }
+
     getContainersByParentId(pi: String): ContainerModel[] {
         return this.db.containers.filter(container => container[ShortName.ParentId] === pi);
     }

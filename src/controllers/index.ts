@@ -9,6 +9,7 @@ import {
     isCreationRequest,
     isDiscoveryRequest,
     isApplicationEntityRetrieveRequest,
+    isContainerRetrieveRequest,
 } from '../utils/index';
 import { ContentInstanceModel } from '../models';
 
@@ -40,6 +41,8 @@ export class Controller {
                 if (isDiscoveryRequest(req)) return this.discoveryRequest(req, res);
 
                 if (isApplicationEntityRetrieveRequest(req)) return this.retrieveAE(req, res);
+
+                if (isContainerRetrieveRequest(req)) return this.retrieveContainer(req, res);
 
                 const statusCode = StatusCode.NOT_FOUND;
                 res.writeHead(HTTPStatusCodeMapping[statusCode], {
@@ -266,7 +269,7 @@ export class Controller {
                         contentInstances.push(...this.service.getContentInstancesByParentId(container[ShortName.ResourceID]));
                     });
 
-                    if (containers.length > 0) {
+                    if (contentInstances.length > 0) {
                         payload = {
                             [CustomAttributes.ApplicationEntity]: ae,
                             [CustomAttributes.Container]: containers,
@@ -279,6 +282,8 @@ export class Controller {
                         };
 
                     }
+                } else {
+                    payload = { [CustomAttributes.ApplicationEntity]: ae };
                 }
             } else {
                 payload = { [CustomAttributes.ApplicationEntity]: ae };
@@ -364,6 +369,66 @@ export class Controller {
         });
 
         return res.end(JSON.stringify({ [CustomAttributes.Container]: createdContainer }));
+    }
+
+    private retrieveContainer(req: IncomingMessage, res: ServerResponse) {
+        if (req.url) {
+            const baseUrl = `http://${req.headers.host}`;
+            const url = new URL(req.url, baseUrl);
+
+            let pathname = url.pathname;
+
+            if (pathname.endsWith('/') && pathname.length > 1) pathname = pathname.slice(0, -1);
+
+            const segments = pathname.split('/').filter(Boolean);
+            const rn = segments[2];
+            const rcn = parseInt(url.searchParams.get(ShortName.ResultContent) ?? "");
+
+            let container = this.service.getContainer(rn);
+            if (container === undefined) {
+                const statusCode = StatusCode.NOT_FOUND;
+                res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                return res.end(JSON.stringify({ error: 'Not Found' }));
+            }
+
+            let payload = null;
+
+            if (rcn === 4) {
+                // get child resources
+                let contentInstances = this.service.getContentInstancesByParentId(container[ShortName.ResourceID]);
+
+                if (contentInstances.length > 0) {
+                    payload = {
+                        [CustomAttributes.Container]: container,
+                        [CustomAttributes.ContentInstance]: contentInstances,
+                    };
+                } else {
+                    payload = { [CustomAttributes.Container]: container };
+                }
+            } else {
+                payload = { [CustomAttributes.Container]: container };
+            }
+
+
+            // 6) Devolve 200 OK
+            const statusCode = StatusCode.OK;
+            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+
+            return res.end(JSON.stringify(payload));
+        } else {
+            const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return res.end(JSON.stringify({ error: 'Something went wrong while retrieving the container' }));
+        }
     }
 
     private createContentInstance(req: IncomingMessage, body: string, res: ServerResponse) {
