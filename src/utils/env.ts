@@ -1,22 +1,15 @@
 import { readFileSync } from 'fs';
 import { ENV_FILE_PATH } from '../constants';
-import { getTimestamp } from "./misc";
 
 interface EnvConfig {
     PORT: string;
-    CSE_ID: string;
     CSE_NAME: string;
-    APP_URL: string;
-    CSE_CREATION_TIME: string;
 }
 
 function parseArgs(): Partial<EnvConfig> {
     const args = process.argv.slice(2);
 
     const config: Partial<EnvConfig> = {};
-
-    // Set CSEBase creation time
-    config["CSE_CREATION_TIME" as keyof EnvConfig] = getTimestamp();
 
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];

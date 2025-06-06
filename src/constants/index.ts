@@ -16,10 +16,4 @@ export const ENV_FILE_PATH = join(__dirname, '../../.env');
 
 export const PORT = () => getEnvVar('PORT', '3000');
 
-export const APP_URL = () => getEnvVar('APP_URL', '');
-
-export const CSE_ID = () => getEnvVar('CSE_ID', '');
-
 export const CSE_NAME = () => getEnvVar('CSE_NAME', '');
-
-export const CSE_CREATION_TIME = () => getEnvVar('CSE_CREATION_TIME', '');

@@ -1,5 +1,4 @@
 export enum CustomAttributes {
-    CSEBase = 'm2m:cb',
     ApplicationEntity = 'm2m:ae',
     Container = 'm2m:cnt',
     ContentInstance = 'm2m:cin',
