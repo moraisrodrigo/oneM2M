@@ -1,6 +1,6 @@
 import { IncomingMessage, ServerResponse } from 'http';
 import { Service } from '../services/index';
-import { CustomHeaders, CustomAttributes, ResourceType, ShortName, StatusCode, HTTPStatusCodeMapping } from '../types/index';
+import { CustomHeaders, CustomAttributes, ResourceType, ShortName, StatusCode, HTTPStatusCodeMapping, ContentInstance } from '../types/index';
 import { PORT, APP_URL, CSE_ID, CSE_NAME, CSE_CREATION_TIME, JSON_CONTENT_TYPE } from '../constants/index';
 import {
     isApplicationEntityCreateRequest,
@@ -11,8 +11,10 @@ import {
     isApplicationEntityRetrieveRequest,
     isContainerRetrieveRequest,
     isContentInstanceRetrieveRequest,
+    isApplicationEntityUpdateRequest,
+    isUpdateRequest,
+    isContainerUpdateRequest,
 } from '../utils/index';
-import { ContentInstanceModel } from '../models';
 import { getTimestamp } from '../utils/misc';
 
 export class Controller {
@@ -56,6 +58,8 @@ export class Controller {
 
                 if (isContentInstanceCreateRequest(request)) return this.createContentInstance(request, body, response, requestID as string);
 
+                if (isUpdateRequest(request)) return this.updateRequest(request, body, response, requestID as string);
+
                 if (isDiscoveryRequest(request)) return this.discoveryRequest(request, response, requestID as string);
 
                 if (isApplicationEntityRetrieveRequest(request)) return this.retrieveAE(request, response, requestID as string);
@@ -80,6 +84,14 @@ export class Controller {
                 response.end(JSON.stringify({ error: error?.message || 'Internal Server Error' }));
             }
         });
+    }
+
+    private updateRequest(request: IncomingMessage, body: string, response: ServerResponse, requestId: string) {
+        if (isApplicationEntityUpdateRequest(request)) return this.updateAE(request, body, response, requestId);
+
+        if (isContainerUpdateRequest(request)) return this.updateContainer(request, body, response, requestId);
+
+        return this.notImplemented(request, response, requestId);
     }
 
     private discoveryRequest(request: IncomingMessage, response: ServerResponse, requestId: string) {
@@ -288,6 +300,62 @@ export class Controller {
         return response.end(JSON.stringify({ [CustomAttributes.ApplicationEntity]: createdAE }));
     }
 
+    private updateAE(request: IncomingMessage, body: string, response: ServerResponse, requestId: string) {
+        if (request.url) {
+            const baseUrl = `http://${request.headers.host}`;
+            const url = new URL(request.url, baseUrl);
+
+            let pathname = url.pathname;
+
+            if (pathname.endsWith('/') && pathname.length > 1) pathname = pathname.slice(0, -1);
+
+            const segments = pathname.split('/').filter(Boolean);
+            const resourceName = segments[1];
+
+            // Busca a AE pelo resourceName
+            let ae = this.service.getAE(resourceName);
+            if (ae === undefined) {
+                const statusCode = StatusCode.NOT_FOUND;
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.RequestID]: requestId,
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                return response.end(JSON.stringify({ error: 'Not Found' }));
+            }
+
+            const updatedAE = this.service.updateAE(resourceName);
+
+            if (!updatedAE) {
+                const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.RequestID]: requestId,
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                return response.end(JSON.stringify({ error: 'Something went wrong while updating AE' }));
+            }
+
+            const rcn = parseInt(url.searchParams.get(ShortName.ResultContent) ?? "");
+
+            response.writeHead(200, {
+                [CustomHeaders.RequestID]: requestId,
+                [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
+            });
+
+            return rcn === 0 ? response.end() : response.end(JSON.stringify({ [CustomAttributes.ApplicationEntity]: updatedAE }));
+
+        } else {
+            const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestId,
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return response.end(JSON.stringify({ error: 'Something went wrong while updating the AE' }));
+        }
+    }
+
     private retrieveAE(request: IncomingMessage, response: ServerResponse, requestId: string) {
         if (request.url) {
             const baseUrl = `http://${request.headers.host}`;
@@ -320,7 +388,7 @@ export class Controller {
                 let containers = this.service.getContainersByParentId(ae[ShortName.ResourceID]);
 
                 if (containers.length > 0) {
-                    let contentInstances: ContentInstanceModel[] = [];
+                    let contentInstances: ContentInstance[] = [];
 
                     containers.forEach(container => {
                         contentInstances.push(...this.service.getContentInstancesByParentId(container[ShortName.ResourceID]));
@@ -422,6 +490,62 @@ export class Controller {
         });
 
         return response.end(JSON.stringify({ [CustomAttributes.Container]: createdContainer }));
+    }
+
+    private updateContainer(request: IncomingMessage, body: string, response: ServerResponse, requestId: string) {
+        if (request.url) {
+            const baseUrl = `http://${request.headers.host}`;
+            const url = new URL(request.url, baseUrl);
+
+            let pathname = url.pathname;
+
+            if (pathname.endsWith('/') && pathname.length > 1) pathname = pathname.slice(0, -1);
+
+            const segments = pathname.split('/').filter(Boolean);
+            const resourceName = segments[2];
+
+            // Busca a AE pelo resourceName
+            let container = this.service.getContainer(resourceName);
+            if (container === undefined) {
+                const statusCode = StatusCode.NOT_FOUND;
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.RequestID]: requestId,
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                return response.end(JSON.stringify({ error: 'Not Found' }));
+            }
+
+            const updatedContainer = this.service.updateContainer(resourceName);
+
+            if (!updatedContainer) {
+                const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.RequestID]: requestId,
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                return response.end(JSON.stringify({ error: 'Something went wrong while updating container' }));
+            }
+
+            const rcn = parseInt(url.searchParams.get(ShortName.ResultContent) ?? "");
+
+            response.writeHead(200, {
+                [CustomHeaders.RequestID]: requestId,
+                [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.Container}`,
+            });
+
+            return rcn === 0 ? response.end() : response.end(JSON.stringify({ [CustomAttributes.Container]: updatedContainer }));
+
+        } else {
+            const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestId,
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return response.end(JSON.stringify({ error: 'Something went wrong while updating the container' }));
+        }
     }
 
     private retrieveContainer(request: IncomingMessage, response: ServerResponse, requestId: string) {

@@ -2,23 +2,25 @@ import { IncomingMessage } from "http";
 import { CustomHeaders, ResourceType, ShortName } from "../types/index";
 import { CSE_NAME } from "../constants/index";
 
-const isPostRequest = (req: IncomingMessage): boolean => req.method === 'POST';
+const isPostRequest = (request: IncomingMessage): boolean => request.method === 'POST';
 
-const isGetRequest = (req: IncomingMessage): boolean => req.method === 'GET';
+const isGetRequest = (request: IncomingMessage): boolean => request.method === 'GET';
 
-const isDeleteRequest = (req: IncomingMessage): boolean => req.method === 'DELETE';
+const isDeleteRequest = (request: IncomingMessage): boolean => request.method === 'DELETE';
 
-const isPutRequest = (req: IncomingMessage): boolean => req.method === 'PUT';
+const isPutRequest = (request: IncomingMessage): boolean => request.method === 'PUT';
 
-export const isCreationRequest = (req: IncomingMessage): boolean => !!req.url && isPostRequest(req) && req.url.startsWith(`/${CSE_NAME()}`);
+export const isCreationRequest = (request: IncomingMessage): boolean => !!request.url && isPostRequest(request) && request.url.startsWith(`/${CSE_NAME()}`);
 
-export const isDiscoveryRequest = (req: IncomingMessage): boolean => {
+export const isUpdateRequest = (request: IncomingMessage): boolean => !!request.url && isPutRequest(request) && request.url.startsWith(`/${CSE_NAME()}`);
+
+export const isDiscoveryRequest = (request: IncomingMessage): boolean => {
     // Only allow GET requests
-    if (!req.url || !isGetRequest(req)) return false;
+    if (!request.url || !isGetRequest(request)) return false;
 
     try {
-        const baseUrl = `http://${req.headers.host}`;
-        const url = new URL(req.url, baseUrl);
+        const baseUrl = `http://${request.headers.host}`;
+        const url = new URL(request.url, baseUrl);
 
         let pathname = url.pathname;
 
@@ -41,16 +43,16 @@ export const isDiscoveryRequest = (req: IncomingMessage): boolean => {
     }
 };
 
-export const isApplicationEntityCreateRequest = (req: IncomingMessage): boolean => {
+export const isApplicationEntityCreateRequest = (request: IncomingMessage): boolean => {
     // Only allow POST requests
-    if (!req.url || !isPostRequest(req)) return false;
+    if (!request.url || !isPostRequest(request)) return false;
 
-    const isValidUrl = req.url === `/${CSE_NAME()}`;
+    const isValidUrl = request.url === `/${CSE_NAME()}`;
 
     // If URL is not exactly "/CSE_NAME", return false
     if (!isValidUrl) return false
 
-    const { [CustomHeaders.ContentType]: contentType } = req.headers;
+    const { [CustomHeaders.ContentType]: contentType } = request.headers;
 
     // If Content-Type header is not present, return false
     if (!contentType) return false;
@@ -73,11 +75,67 @@ export const isApplicationEntityCreateRequest = (req: IncomingMessage): boolean 
     return typeIdentifier === ShortName.Type && Number(typeValue) === ResourceType.ApplicationEntity;
 }
 
-export const isContainerCreateRequest = (req: IncomingMessage): boolean => {
-    // Only allow POST requests
-    if (!req.url || !isPostRequest(req)) return false;
+export const isApplicationEntityUpdateRequest = (request: IncomingMessage): boolean => {
+    // Only allow PUT requests
+    if (!request.url || !isPutRequest(request)) return false;
 
-    const { [CustomHeaders.ContentType]: contentType } = req.headers;
+    try {
+        const baseUrl = `http://${request.headers.host}`;
+        const url = new URL(request.url, baseUrl);
+
+        let pathname = url.pathname;
+
+        if (pathname.endsWith('/') && pathname.length > 1) pathname = pathname.slice(0, -1);
+
+        const segments = pathname.split('/').filter(Boolean);
+
+        // Must be “/<CSE_NAME()>”
+        const expected = `${CSE_NAME()}`;
+        if (segments[0] !== expected) return false;
+
+        if(segments.length !== 2) return false;
+
+        return true;
+
+    } catch {
+        return false;
+    }
+
+}
+
+export const isContainerUpdateRequest = (request: IncomingMessage): boolean => {
+    // Only allow PUT requests
+    if (!request.url || !isPutRequest(request)) return false;
+
+    try {
+        const baseUrl = `http://${request.headers.host}`;
+        const url = new URL(request.url, baseUrl);
+
+        let pathname = url.pathname;
+
+        if (pathname.endsWith('/') && pathname.length > 1) pathname = pathname.slice(0, -1);
+
+        const segments = pathname.split('/').filter(Boolean);
+
+        // Must be “/<CSE_NAME()>”
+        const expected = `${CSE_NAME()}`;
+        if (segments[0] !== expected) return false;
+
+        if(segments.length !== 3) return false;
+
+        return true;
+
+    } catch {
+        return false;
+    }
+
+}
+
+export const isContainerCreateRequest = (request: IncomingMessage): boolean => {
+    // Only allow POST requests
+    if (!request.url || !isPostRequest(request)) return false;
+
+    const { [CustomHeaders.ContentType]: contentType } = request.headers;
 
     // If Content-Type header is not present, return false
     if (!contentType) return false;
@@ -99,18 +157,18 @@ export const isContainerCreateRequest = (req: IncomingMessage): boolean => {
     // If type is not 'ty' or resourceType is not '3', return false
     if (typeIdentifier !== ShortName.Type || Number(typeValue) !== ResourceType.Container) return false
 
-    // example: req.url = '/CSE_NAME/app_light/';
+    // example: request.url = '/CSE_NAME/app_light/';
     // urlParts = [ 'CSE_NAME', 'app_light' ];
-    const urlParts = req.url.split('/').filter(Boolean);
+    const urlParts = request.url.split('/').filter(Boolean);
 
     return urlParts.length === 2 && urlParts[0] === CSE_NAME();
 }
 
-export const isContentInstanceCreateRequest = (req: IncomingMessage): boolean => {
+export const isContentInstanceCreateRequest = (request: IncomingMessage): boolean => {
     // Only allow POST requests
-    if (!req.url || !isPostRequest(req)) return false;
+    if (!request.url || !isPostRequest(request)) return false;
 
-    const { [CustomHeaders.ContentType]: contentType } = req.headers;
+    const { [CustomHeaders.ContentType]: contentType } = request.headers;
 
     // If Content-Type header is not present, return false
     if (!contentType) return false;
@@ -132,20 +190,20 @@ export const isContentInstanceCreateRequest = (req: IncomingMessage): boolean =>
     // If type is not 'ty' or resourceType is not '4', return false
     if (typeIdentifier !== ShortName.Type || Number(typeValue) !== ResourceType.ContentInstance) return false
 
-    // example: req.url = '/CSE_NAME/app_light/status';
+    // example: request.url = '/CSE_NAME/app_light/status';
     // urlParts = [ 'CSE_NAME', 'app_light', 'status' ];
-    const urlParts = req.url.split('/').filter(Boolean);
+    const urlParts = request.url.split('/').filter(Boolean);
 
     return urlParts.length === 3 && urlParts[0] === CSE_NAME();
 }
 
-export const isApplicationEntityRetrieveRequest = (req: IncomingMessage): boolean => {
+export const isApplicationEntityRetrieveRequest = (request: IncomingMessage): boolean => {
     // Only allow GET requests
-    if (!req.url || !isGetRequest(req)) return false;
+    if (!request.url || !isGetRequest(request)) return false;
 
     try {
-        const baseUrl = `http://${req.headers.host}`;
-        const url = new URL(req.url, baseUrl);
+        const baseUrl = `http://${request.headers.host}`;
+        const url = new URL(request.url, baseUrl);
 
         let pathname = url.pathname;
 
@@ -167,13 +225,13 @@ export const isApplicationEntityRetrieveRequest = (req: IncomingMessage): boolea
     }
 };
 
-export const isContainerRetrieveRequest = (req: IncomingMessage): boolean => {
+export const isContainerRetrieveRequest = (request: IncomingMessage): boolean => {
     // Only allow GET requests
-    if (!req.url || !isGetRequest(req)) return false;
+    if (!request.url || !isGetRequest(request)) return false;
 
     try {
-        const baseUrl = `http://${req.headers.host}`;
-        const url = new URL(req.url, baseUrl);
+        const baseUrl = `http://${request.headers.host}`;
+        const url = new URL(request.url, baseUrl);
 
         let pathname = url.pathname;
 
@@ -195,13 +253,13 @@ export const isContainerRetrieveRequest = (req: IncomingMessage): boolean => {
     }
 };
 
-export const isContentInstanceRetrieveRequest = (req: IncomingMessage): boolean => {
+export const isContentInstanceRetrieveRequest = (request: IncomingMessage): boolean => {
     // Only allow GET requests
-    if (!req.url || !isGetRequest(req)) return false;
+    if (!request.url || !isGetRequest(request)) return false;
 
     try {
-        const baseUrl = `http://${req.headers.host}`;
-        const url = new URL(req.url, baseUrl);
+        const baseUrl = `http://${request.headers.host}`;
+        const url = new URL(request.url, baseUrl);
 
         let pathname = url.pathname;
 

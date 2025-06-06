@@ -23,6 +23,16 @@ export class Service {
         return newApplicationEntity;
     }
 
+    updateAE(resourceName: string): ApplicationEntity | null {
+        const applicationEntityFound = this.db.AEs.find((ae) => ae[ShortName.ResourceName] === resourceName);
+        if (!applicationEntityFound) return null;
+
+        applicationEntityFound[ShortName.LastModifiedTime] = getTimestamp();
+        this.save();
+
+        return applicationEntityFound;
+    }
+
     createContainer(
         resourceName: string,
         resourceId: string,
@@ -42,6 +52,16 @@ export class Service {
         this.save();
 
         return newContainer;
+    }
+
+    updateContainer(resourceName: string): Container | null {
+        const containerFound = this.db.containers.find((container) => container[ShortName.ResourceName] === resourceName);
+        if (!containerFound) return null;
+
+        containerFound[ShortName.LastModifiedTime] = getTimestamp();
+        this.save();
+
+        return containerFound;
     }
 
     createContentInstance(
@@ -71,35 +91,35 @@ export class Service {
         return this.db.AEs;
     }
 
-    getAE(rn: String): ApplicationEntityModel|undefined {
+    getAE(rn: String): ApplicationEntity|undefined {
         return this.db.AEs.find((ae) => ae.rn === rn);
     }
 
-    getAEByResourceId(ri: String): ApplicationEntityModel|undefined {
+    getAEByResourceId(ri: String): ApplicationEntity|undefined {
         return this.db.AEs.find((ae) => ae.ri === ri);
     }
 
-    getContainers(): ContainerModel[] {
+    getContainers(): Container[] {
         return this.db.containers;
     }
 
-    getContainer(rn: String): ContainerModel|undefined {
+    getContainer(rn: String): Container|undefined {
         return this.db.containers.find((container) => container.rn === rn);
     }
 
-    getContainersByParentId(pi: String): ContainerModel[] {
+    getContainersByParentId(pi: String): Container[] {
         return this.db.containers.filter(container => container[ShortName.ParentId] === pi);
     }
 
-    getContainerByResourceId(ri: String): ContainerModel|undefined {
+    getContainerByResourceId(ri: String): Container|undefined {
         return this.db.containers.find((container) => container[ShortName.ResourceID] === ri);
     }
 
-    getContentInstances(): ContentInstanceModel[] {
+    getContentInstances(): ContentInstance[] {
         return this.db.contentInstances;
     }
 
-    getContentInstancesByParentId(pi: String): ContentInstanceModel[] {
+    getContentInstancesByParentId(pi: String): ContentInstance[] {
         return this.db.contentInstances.filter(contentInstance => contentInstance[ShortName.ParentId] === pi);
     }
 }
