@@ -300,10 +300,10 @@ export class Controller {
         return response.end(JSON.stringify({ [CustomAttributes.ApplicationEntity]: createdAE }));
     }
 
-    private updateAE(req: IncomingMessage, body: string, res: ServerResponse, requestId: string) {
-        if (req.url) {
-            const baseUrl = `http://${req.headers.host}`;
-            const url = new URL(req.url, baseUrl);
+    private updateAE(request: IncomingMessage, body: string, response: ServerResponse, requestId: string) {
+        if (request.url) {
+            const baseUrl = `http://${request.headers.host}`;
+            const url = new URL(request.url, baseUrl);
 
             let pathname = url.pathname;
 
@@ -316,43 +316,43 @@ export class Controller {
             let ae = this.service.getAE(resourceName);
             if (ae === undefined) {
                 const statusCode = StatusCode.NOT_FOUND;
-                res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
                     [CustomHeaders.RequestID]: requestId,
                     [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                     [CustomHeaders.StatusCode]: statusCode,
                 });
-                return res.end(JSON.stringify({ error: 'Not Found' }));
+                return response.end(JSON.stringify({ error: 'Not Found' }));
             }
 
             const updatedAE = this.service.updateAE(resourceName);
 
             if (!updatedAE) {
                 const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
-                res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
                     [CustomHeaders.RequestID]: requestId,
                     [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                     [CustomHeaders.StatusCode]: statusCode,
                 });
-                return res.end(JSON.stringify({ error: 'Something went wrong while updating AE' }));
+                return response.end(JSON.stringify({ error: 'Something went wrong while updating AE' }));
             }
 
             const rcn = parseInt(url.searchParams.get(ShortName.ResultContent) ?? "");
 
-            res.writeHead(200, {
+            response.writeHead(200, {
                 [CustomHeaders.RequestID]: requestId,
                 [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
             });
 
-            return rcn === 0 ? res.end() : res.end(JSON.stringify({ [CustomAttributes.ApplicationEntity]: updatedAE }));
+            return rcn === 0 ? response.end() : response.end(JSON.stringify({ [CustomAttributes.ApplicationEntity]: updatedAE }));
 
         } else {
             const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
                 [CustomHeaders.RequestID]: requestId,
                 [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                 [CustomHeaders.StatusCode]: statusCode,
             });
-            return res.end(JSON.stringify({ error: 'Something went wrong while updating the AE' }));
+            return response.end(JSON.stringify({ error: 'Something went wrong while updating the AE' }));
         }
     }
 
@@ -492,10 +492,10 @@ export class Controller {
         return response.end(JSON.stringify({ [CustomAttributes.Container]: createdContainer }));
     }
 
-    private updateContainer(req: IncomingMessage, body: string, res: ServerResponse, requestId: string) {
-        if (req.url) {
-            const baseUrl = `http://${req.headers.host}`;
-            const url = new URL(req.url, baseUrl);
+    private updateContainer(request: IncomingMessage, body: string, response: ServerResponse, requestId: string) {
+        if (request.url) {
+            const baseUrl = `http://${request.headers.host}`;
+            const url = new URL(request.url, baseUrl);
 
             let pathname = url.pathname;
 
@@ -508,43 +508,43 @@ export class Controller {
             let container = this.service.getContainer(resourceName);
             if (container === undefined) {
                 const statusCode = StatusCode.NOT_FOUND;
-                res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
                     [CustomHeaders.RequestID]: requestId,
                     [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                     [CustomHeaders.StatusCode]: statusCode,
                 });
-                return res.end(JSON.stringify({ error: 'Not Found' }));
+                return response.end(JSON.stringify({ error: 'Not Found' }));
             }
 
             const updatedContainer = this.service.updateContainer(resourceName);
 
             if (!updatedContainer) {
                 const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
-                res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
                     [CustomHeaders.RequestID]: requestId,
                     [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                     [CustomHeaders.StatusCode]: statusCode,
                 });
-                return res.end(JSON.stringify({ error: 'Something went wrong while updating container' }));
+                return response.end(JSON.stringify({ error: 'Something went wrong while updating container' }));
             }
 
             const rcn = parseInt(url.searchParams.get(ShortName.ResultContent) ?? "");
 
-            res.writeHead(200, {
+            response.writeHead(200, {
                 [CustomHeaders.RequestID]: requestId,
                 [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.Container}`,
             });
 
-            return rcn === 0 ? res.end() : res.end(JSON.stringify({ [CustomAttributes.Container]: updatedContainer }));
+            return rcn === 0 ? response.end() : response.end(JSON.stringify({ [CustomAttributes.Container]: updatedContainer }));
 
         } else {
             const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
                 [CustomHeaders.RequestID]: requestId,
                 [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                 [CustomHeaders.StatusCode]: statusCode,
             });
-            return res.end(JSON.stringify({ error: 'Something went wrong while updating the container' }));
+            return response.end(JSON.stringify({ error: 'Something went wrong while updating the container' }));
         }
     }
 
