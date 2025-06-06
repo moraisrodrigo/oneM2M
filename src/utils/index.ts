@@ -12,6 +12,8 @@ const isPutRequest = (req: IncomingMessage): boolean => req.method === 'PUT';
 
 export const isCreationRequest = (req: IncomingMessage): boolean => !!req.url && isPostRequest(req) && req.url.startsWith(`/${CSE_NAME()}`);
 
+export const isUpdateRequest = (req: IncomingMessage): boolean => !!req.url && isPutRequest(req) && req.url.startsWith(`/${CSE_NAME()}`);
+
 export const isDiscoveryRequest = (req: IncomingMessage): boolean => {
     // Only allow GET requests
     if (!req.url || !isGetRequest(req)) return false;
@@ -71,6 +73,34 @@ export const isApplicationEntityCreateRequest = (req: IncomingMessage): boolean 
 
     // If typeIdentifier is not 'ty' or typeValue is not '2', return false
     return typeIdentifier === ShortName.Type && Number(typeValue) === ResourceType.ApplicationEntity;
+}
+
+export const isApplicationEntityUpdateRequest = (req: IncomingMessage): boolean => {
+    // Only allow PUT requests
+    if (!req.url || !isPutRequest(req)) return false;
+
+    try {
+        const baseUrl = `http://${req.headers.host}`;
+        const url = new URL(req.url, baseUrl);
+
+        let pathname = url.pathname;
+
+        if (pathname.endsWith('/') && pathname.length > 1) pathname = pathname.slice(0, -1);
+
+        const segments = pathname.split('/').filter(Boolean);
+
+        // Must be “/<CSE_NAME()>”
+        const expected = `${CSE_NAME()}`;
+        if (segments[0] !== expected) return false;
+
+        if(segments.length !== 2) return false;
+
+        return true;
+
+    } catch {
+        return false;
+    }
+
 }
 
 export const isContainerCreateRequest = (req: IncomingMessage): boolean => {

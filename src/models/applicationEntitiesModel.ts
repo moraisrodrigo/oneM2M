@@ -7,5 +7,6 @@ export class ApplicationEntityModel extends ApplicationEntity {
     constructor(resourceName: string, resourceId: string) {
         super(resourceName, resourceId);
         this[ShortName.CreationTime] = getTimestamp();
+        this[ShortName.LastModifiedTime] = '';
     }
 }

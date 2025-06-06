@@ -1,5 +1,6 @@
 import { getDB, saveDB } from '../db/index';
 import { ShortName } from '../types/index';
+import { getTimestamp } from "../utils/misc";
 import { ApplicationEntityModel, ContainerModel, ContentInstanceModel } from '../models/index';
 
 export class Service {
@@ -19,6 +20,16 @@ export class Service {
         this.save();
 
         return newApplicationEntity;
+    }
+
+    updateAE(resourceName: string): ApplicationEntityModel | null {
+        const applicationEntityFound = this.db.AEs.find((ae) => ae[ShortName.ResourceName] === resourceName);
+        if (!applicationEntityFound) return null;
+
+        applicationEntityFound[ShortName.LastModifiedTime] = getTimestamp();
+        this.save();
+
+        return applicationEntityFound;
     }
 
     createContainer(

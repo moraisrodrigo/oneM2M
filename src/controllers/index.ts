@@ -11,6 +11,8 @@ import {
     isApplicationEntityRetrieveRequest,
     isContainerRetrieveRequest,
     isContentInstanceRetrieveRequest,
+    isApplicationEntityUpdateRequest,
+    isUpdateRequest,
 } from '../utils/index';
 import { ContentInstanceModel } from '../models';
 
@@ -38,6 +40,8 @@ export class Controller {
                 }
 
                 if (isCreationRequest(req)) return this.creationRequest(req, body, res);
+
+                if (isUpdateRequest(req)) return this.updateRequest(req, body, res);
 
                 if (isDiscoveryRequest(req)) return this.discoveryRequest(req, res);
 
@@ -70,6 +74,12 @@ export class Controller {
         if (isContainerCreateRequest(req)) return this.createContainer(req, body, res);
 
         if (isContentInstanceCreateRequest(req)) return this.createContentInstance(req, body, res);
+
+        return this.notImplemented(req, res);
+    }
+
+    private updateRequest(req: IncomingMessage, body: string, res: ServerResponse) {
+        if (isApplicationEntityUpdateRequest(req)) return this.updateAE(req, body, res);
 
         return this.notImplemented(req, res);
     }
@@ -286,6 +296,59 @@ export class Controller {
         });
 
         return res.end(JSON.stringify({ [CustomAttributes.ApplicationEntity]: createdAE }));
+    }
+
+    private updateAE(req: IncomingMessage, body: string, res: ServerResponse) {
+        if (req.url) {
+            const baseUrl = `http://${req.headers.host}`;
+            const url = new URL(req.url, baseUrl);
+
+            let pathname = url.pathname;
+
+            if (pathname.endsWith('/') && pathname.length > 1) pathname = pathname.slice(0, -1);
+
+            const segments = pathname.split('/').filter(Boolean);
+            const resourceName = segments[1];
+
+            // Busca a AE pelo resourceName
+            let ae = this.service.getAE(resourceName);
+            if (ae === undefined) {
+                const statusCode = StatusCode.NOT_FOUND;
+                res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                return res.end(JSON.stringify({ error: 'Not Found' }));
+            }
+
+            const updatedAE = this.service.updateAE(resourceName);
+
+            if (!updatedAE) {
+                const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+                res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                return res.end(JSON.stringify({ error: 'Something went wrong while updating AE' }));
+            }
+
+            const rcn = parseInt(url.searchParams.get(ShortName.ResultContent) ?? "");
+
+            res.writeHead(200, {
+                [CustomHeaders.ResourceID]: updatedAE[ShortName.ResourceID],
+                [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
+            });
+
+            return rcn === 0 ? res.end() : res.end(JSON.stringify({ [CustomAttributes.ApplicationEntity]: updatedAE }));
+
+        } else {
+            const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return res.end(JSON.stringify({ error: 'Something went wrong while retrieving the AE' }));
+        }
     }
 
     private retrieveAE(req: IncomingMessage, res: ServerResponse) {
