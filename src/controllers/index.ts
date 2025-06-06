@@ -1,6 +1,6 @@
 import { IncomingMessage, ServerResponse } from 'http';
 import { Service } from '../services/index';
-import { CustomHeaders, CustomAttributes, ResourceType, ShortName, StatusCode, HTTPStatusCodeMapping } from '../types/index';
+import { CustomHeaders, CustomAttributes, ResourceType, ShortName, StatusCode, HTTPStatusCodeMapping, ContentInstance } from '../types/index';
 import { PORT, APP_URL, CSE_ID, CSE_NAME, CSE_CREATION_TIME, JSON_CONTENT_TYPE } from '../constants/index';
 import {
     isApplicationEntityCreateRequest,
@@ -15,7 +15,6 @@ import {
     isUpdateRequest,
     isContainerUpdateRequest,
 } from '../utils/index';
-import { ContentInstanceModel } from '../models';
 import { getTimestamp } from '../utils/misc';
 
 export class Controller {
@@ -88,9 +87,9 @@ export class Controller {
     }
 
     private updateRequest(request: IncomingMessage, body: string, response: ServerResponse, requestId: string) {
-        if (isApplicationEntityUpdateRequest(request)) return this.updateAE(request, body, response, requestId: string);
+        if (isApplicationEntityUpdateRequest(request)) return this.updateAE(request, body, response, requestId);
 
-        if (isContainerUpdateRequest(request)) return this.updateContainer(request, body, response, requestId: string);
+        if (isContainerUpdateRequest(request)) return this.updateContainer(request, body, response, requestId);
 
         return this.notImplemented(request, response, requestId);
     }
@@ -389,7 +388,7 @@ export class Controller {
                 let containers = this.service.getContainersByParentId(ae[ShortName.ResourceID]);
 
                 if (containers.length > 0) {
-                    let contentInstances: ContentInstanceModel[] = [];
+                    let contentInstances: ContentInstance[] = [];
 
                     containers.forEach(container => {
                         contentInstances.push(...this.service.getContentInstancesByParentId(container[ShortName.ResourceID]));
