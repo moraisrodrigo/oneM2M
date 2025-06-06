@@ -1,3 +1,4 @@
+import { getTimestamp } from "../utils/misc";
 import { ResourceType, ShortName } from "./index";
 
 export class ApplicationEntity {
@@ -9,6 +10,6 @@ export class ApplicationEntity {
     constructor(resourceName: string, resourceId: string) {
         this[ShortName.ResourceName] = resourceName;
         this[ShortName.ResourceID] = resourceId;
-        this[ShortName.CreationTime] = new Date().toISOString();
+        this[ShortName.CreationTime] = getTimestamp();
     }
 }

@@ -13,77 +13,85 @@ import {
     isContentInstanceRetrieveRequest,
 } from '../utils/index';
 import { ContentInstanceModel } from '../models';
+import { getTimestamp } from '../utils/misc';
 
 export class Controller {
     constructor(private service: Service) { }
 
-    handleRequest(req: IncomingMessage, res: ServerResponse): void {
+    handleRequest(request: IncomingMessage, response: ServerResponse): void {
         let body = '';
 
-        req.on('data', (chunk) => { body += chunk.toString(); });
+        request.on('data', (chunk) => { body += chunk.toString(); });
 
-        req.on('end', () => {
-            res.setHeader(CustomHeaders.ContentType, 'application/json');
+        request.on('end', () => {
+            response.setHeader(CustomHeaders.ContentType, 'application/json');
 
             try {
-                const origin = req.headers[CustomHeaders.Origin];
+                const requestID = request.headers[CustomHeaders.RequestID];
 
-                if (!origin) {
+                if (!requestID) {
                     const statusCode = StatusCode.BAD_REQUEST;
-                    res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    response.writeHead(HTTPStatusCodeMapping[statusCode], {
                         [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                         [CustomHeaders.StatusCode]: statusCode,
                     });
-                    return res.end(JSON.stringify({ error: `Missing mandatory '${CustomHeaders.Origin}' header` }));
+                    return response.end(JSON.stringify({ error: `Missing mandatory '${CustomHeaders.RequestID}' header` }));
                 }
 
-                if (isCreationRequest(req)) return this.creationRequest(req, body, res);
+                const origin = request.headers[CustomHeaders.Origin] as string || null;
 
-                if (isDiscoveryRequest(req)) return this.discoveryRequest(req, res);
+                // The Origin Header is mandatory for all requests except creation of Application Entities
+                if (isApplicationEntityCreateRequest(request)) return this.createAE(body, response, requestID as string);
 
-                if (isApplicationEntityRetrieveRequest(req)) return this.retrieveAE(req, res);
+                if (!origin) {
+                    const statusCode = StatusCode.BAD_REQUEST;
+                    response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                        [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                        [CustomHeaders.StatusCode]: statusCode,
+                    });
+                    return response.end(JSON.stringify({ error: `Missing mandatory '${CustomHeaders.Origin}' header` }));
+                }
 
-                if (isContainerRetrieveRequest(req)) return this.retrieveContainer(req, res);
+                if (isContainerCreateRequest(request)) return this.createContainer(request, body, response, requestID as string);
 
-                if (isContentInstanceRetrieveRequest(req)) return this.retrieveContentInstance(req, res);
+                if (isContentInstanceCreateRequest(request)) return this.createContentInstance(request, body, response, requestID as string);
+
+                if (isDiscoveryRequest(request)) return this.discoveryRequest(request, response, requestID as string);
+
+                if (isApplicationEntityRetrieveRequest(request)) return this.retrieveAE(request, response, requestID as string);
+
+                if (isContainerRetrieveRequest(request)) return this.retrieveContainer(request, response, requestID as string);
+
+                if (isContentInstanceRetrieveRequest(request)) return this.retrieveContentInstance(request, response, requestID as string);
 
                 const statusCode = StatusCode.NOT_FOUND;
-                res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.RequestID]: requestID as string,
                     [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                     [CustomHeaders.StatusCode]: statusCode,
                 });
-                res.end(JSON.stringify({ error: 'Not Found' }));
+                response.end(JSON.stringify({ error: 'Not Found' }));
             } catch (error: any) {
                 const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
-                res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
                     [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                     [CustomHeaders.StatusCode]: statusCode,
                 });
-                res.end(JSON.stringify({ error: error?.message || 'Internal Server Error' }));
+                response.end(JSON.stringify({ error: error?.message || 'Internal Server Error' }));
             }
         });
     }
 
-    private creationRequest(req: IncomingMessage, body: string, res: ServerResponse) {
-        if (isApplicationEntityCreateRequest(req)) return this.createAE(req, body, res);
-
-        if (isContainerCreateRequest(req)) return this.createContainer(req, body, res);
-
-        if (isContentInstanceCreateRequest(req)) return this.createContentInstance(req, body, res);
-
-        return this.notImplemented(req, res);
-    }
-
-    private discoveryRequest(req: IncomingMessage, res: ServerResponse) {
-        if (req.url !== undefined) {
-            const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
+    private discoveryRequest(request: IncomingMessage, response: ServerResponse, requestId: string) {
+        if (request.url !== undefined) {
+            const parsedUrl = new URL(request.url, `http://${request.headers.host}`);
 
             if (parsedUrl !== null) {
 
                 const rcn = parseInt(parsedUrl.searchParams.get(ShortName.ResultContent) ?? "");
 
                 if (rcn) {
-                    return this.getCSEBase(req, res, rcn);
+                    return this.getCSEBase(request, response, requestId, rcn);
                 }
 
                 const fu = parseInt(parsedUrl.searchParams.get(ShortName.FilterUsage) ?? "");
@@ -91,28 +99,29 @@ export class Controller {
 
                 switch (ty) {
                     case ResourceType.ApplicationEntity:
-                        return this.getAEs(req, res, fu);
+                        return this.getAEs(request, response, requestId, fu);
                     case ResourceType.Container:
-                        return this.getContainers(req, res, fu);
+                        return this.getContainers(request, response, requestId, fu);
                     case ResourceType.ContentInstance:
-                        return this.getContentInstances(req, res, fu);
+                        return this.getContentInstances(request, response, requestId, fu);
                     default:
-                        return this.notImplemented(req, res);
+                        return this.notImplemented(request, response, requestId);
                 }
             }
         }
     }
 
-    private notImplemented(req: IncomingMessage, res: ServerResponse) {
+    private notImplemented(request: IncomingMessage, response: ServerResponse, requestId: string) {
         const statusCode = StatusCode.NOT_IMPLEMENTED;
-        res.writeHead(HTTPStatusCodeMapping[statusCode], {
+        response.writeHead(HTTPStatusCodeMapping[statusCode], {
+            [CustomHeaders.RequestID]: requestId,
             [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
             [CustomHeaders.StatusCode]: statusCode,
         });
-        res.end();
+        response.end();
     }
 
-    private getCSEBase(req: IncomingMessage, res: ServerResponse, rcn: Number) {
+    private getCSEBase(request: IncomingMessage, response: ServerResponse, requestId: string, rcn: Number) {
         let payload = null;
 
         if (rcn === 1) {
@@ -150,15 +159,16 @@ export class Controller {
 
         // 6) Devolve 200 OK
         const statusCode = StatusCode.OK;
-        res.writeHead(HTTPStatusCodeMapping[statusCode], {
+        response.writeHead(HTTPStatusCodeMapping[statusCode], {
+            [CustomHeaders.RequestID]: requestId,
             [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
             [CustomHeaders.StatusCode]: statusCode,
         });
 
-        return res.end(JSON.stringify(payload));
+        return response.end(JSON.stringify(payload));
     }
 
-    private getAEs(req: IncomingMessage, res: ServerResponse, fu: Number) {
+    private getAEs(request: IncomingMessage, response: ServerResponse, requestId: string, fu: Number) {
         // 4) Busca todos os AEs
         const aes = this.service.getAEs();
         // 5) Monta o payload conforme fu
@@ -176,15 +186,16 @@ export class Controller {
 
         // 6) Devolve 200 OK
         const statusCode = StatusCode.OK;
-        res.writeHead(HTTPStatusCodeMapping[statusCode], {
+        response.writeHead(HTTPStatusCodeMapping[statusCode], {
+            [CustomHeaders.RequestID]: requestId,
             [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
             [CustomHeaders.StatusCode]: statusCode,
         });
 
-        return res.end(JSON.stringify(payload));
+        return response.end(JSON.stringify(payload));
     }
 
-    private getContainers(req: IncomingMessage, res: ServerResponse, fu: Number) {
+    private getContainers(request: IncomingMessage, response: ServerResponse, requestId: string, fu: Number) {
         // 4) Busca todos os containers
         const containers = this.service.getContainers();
         // 5) Monta o payload conforme fu
@@ -205,15 +216,16 @@ export class Controller {
 
         // 6) Devolve 200 OK
         const statusCode = StatusCode.OK;
-        res.writeHead(HTTPStatusCodeMapping[statusCode], {
+        response.writeHead(HTTPStatusCodeMapping[statusCode], {
+            [CustomHeaders.RequestID]: requestId,
             [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.Container}`,
             [CustomHeaders.StatusCode]: statusCode,
         });
 
-        return res.end(JSON.stringify(payload));
+        return response.end(JSON.stringify(payload));
     }
 
-    private getContentInstances(req: IncomingMessage, res: ServerResponse, fu: Number) {
+    private getContentInstances(request: IncomingMessage, response: ServerResponse, requestId: string, fu: Number) {
         // 4) Busca todos os contentInstances
         const contentInstances = this.service.getContentInstances();
         // 5) Monta o payload conforme fu
@@ -239,59 +251,47 @@ export class Controller {
 
         // 6) Devolve 200 OK
         const statusCode = StatusCode.OK;
-        res.writeHead(HTTPStatusCodeMapping[statusCode], {
+        response.writeHead(HTTPStatusCodeMapping[statusCode], {
+            [CustomHeaders.RequestID]: requestId,
             [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ContentInstance}`,
             [CustomHeaders.StatusCode]: statusCode,
         });
 
-        return res.end(JSON.stringify(payload));
+        return response.end(JSON.stringify(payload));
     }
 
-    private createAE(req: IncomingMessage, body: string, res: ServerResponse) {
-        const resourceId = req.headers[CustomHeaders.ResourceID];
-        if (!resourceId) {
-            const statusCode = StatusCode.BAD_REQUEST;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
-                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
-                [CustomHeaders.StatusCode]: statusCode,
-            });
-            return res.end(JSON.stringify({ error: `Missing mandatory '${CustomHeaders.ResourceID}' header` }));
-        }
-
-        const { [ShortName.ResourceName]: resourceName } = JSON.parse(body);
+    private createAE(body: string, response: ServerResponse, requestID: string) {
+        let { [ShortName.ResourceName]: resourceName } = JSON.parse(body);
 
         if (!resourceName) {
-            const statusCode = StatusCode.BAD_REQUEST;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
-                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
-                [CustomHeaders.StatusCode]: statusCode,
-            });
-            return res.end(JSON.stringify({ error: `Missing (${ShortName.ResourceName})` }));
+            // make a unique resource name if not provided
+            resourceName = `ae_${getTimestamp()}`;
         }
 
-        const createdAE = this.service.createAE(resourceName, resourceId as string);
+        const createdAE = this.service.createAE(resourceName);
 
         if (!createdAE) {
             const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestID,
                 [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                 [CustomHeaders.StatusCode]: statusCode,
             });
-            return res.end(JSON.stringify({ error: 'Something went wrong while creating AE' }));
+            return response.end(JSON.stringify({ error: 'Something went wrong while creating AE' }));
         }
 
-        res.writeHead(201, {
-            [CustomHeaders.ResourceID]: createdAE[ShortName.ResourceID],
+        response.writeHead(201, {
+            [CustomHeaders.RequestID]: requestID,
             [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
         });
 
-        return res.end(JSON.stringify({ [CustomAttributes.ApplicationEntity]: createdAE }));
+        return response.end(JSON.stringify({ [CustomAttributes.ApplicationEntity]: createdAE }));
     }
 
-    private retrieveAE(req: IncomingMessage, res: ServerResponse) {
-        if (req.url) {
-            const baseUrl = `http://${req.headers.host}`;
-            const url = new URL(req.url, baseUrl);
+    private retrieveAE(request: IncomingMessage, response: ServerResponse, requestId: string) {
+        if (request.url) {
+            const baseUrl = `http://${request.headers.host}`;
+            const url = new URL(request.url, baseUrl);
 
             let pathname = url.pathname;
 
@@ -305,11 +305,12 @@ export class Controller {
             let ae = this.service.getAE(rn);
             if (ae === undefined) {
                 const statusCode = StatusCode.NOT_FOUND;
-                res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.RequestID]: requestId,
                     [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                     [CustomHeaders.StatusCode]: statusCode,
                 });
-                return res.end(JSON.stringify({ error: 'Not Found' }));
+                return response.end(JSON.stringify({ error: 'Not Found' }));
             }
 
             let payload = null;
@@ -348,89 +349,85 @@ export class Controller {
 
             // 6) Devolve 200 OK
             const statusCode = StatusCode.OK;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestId,
                 [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
                 [CustomHeaders.StatusCode]: statusCode,
             });
 
-            return res.end(JSON.stringify(payload));
+            return response.end(JSON.stringify(payload));
         } else {
             const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestId,
                 [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                 [CustomHeaders.StatusCode]: statusCode,
             });
-            return res.end(JSON.stringify({ error: 'Something went wrong while retrieving the AE' }));
+            return response.end(JSON.stringify({ error: 'Something went wrong while retrieving the AE' }));
         }
     }
 
-    private createContainer(req: IncomingMessage, body: string, res: ServerResponse) {
-        const resourceId = req.headers[CustomHeaders.ResourceID];
-        if (!resourceId) {
+    private createContainer(request: IncomingMessage, body: string, response: ServerResponse, requestID: string) {
+        if (!request.url) {
             const statusCode = StatusCode.BAD_REQUEST;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestID,
                 [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                 [CustomHeaders.StatusCode]: statusCode,
             });
-            return res.end(JSON.stringify({ error: `Missing mandatory '${CustomHeaders.ResourceID}' header` }));
-        }
-
-        if (!req.url) {
-            const statusCode = StatusCode.BAD_REQUEST;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
-                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
-                [CustomHeaders.StatusCode]: statusCode,
-            });
-            return res.end(JSON.stringify({ error: 'Invalid URL' }));
+            return response.end(JSON.stringify({ error: 'Invalid URL' }));
         }
 
         const { [CustomAttributes.Container]: containerBody } = JSON.parse(body);
         if (!containerBody) {
             const statusCode = StatusCode.BAD_REQUEST;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestID,
                 [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                 [CustomHeaders.StatusCode]: statusCode,
             });
-            return res.end(JSON.stringify({ error: `Missing (${CustomAttributes.Container})` }));
+            return response.end(JSON.stringify({ error: `Missing (${CustomAttributes.Container})` }));
         }
 
         const { [ShortName.ResourceName]: resourceName } = containerBody;
         if (!resourceName) {
             const statusCode = StatusCode.BAD_REQUEST;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestID,
                 [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                 [CustomHeaders.StatusCode]: statusCode,
             });
-            return res.end(JSON.stringify({ error: `Missing (${ShortName.ResourceName}) in (${CustomAttributes.Container})` }));
+            return response.end(JSON.stringify({ error: `Missing (${ShortName.ResourceName}) in (${CustomAttributes.Container})` }));
         }
 
         // '/onem2m/app_light'
-        const parts = req.url.split('/');
+        const parts = request.url.split('/');
         // parts = [ '', 'onem2m', 'app_light' ]
         // parts[2] = 'app_light' (eg: app_light is the application entity name)
-        const createdContainer = this.service.createContainer(resourceName, resourceId as string, parts[2]);
+        const createdContainer = this.service.createContainer(resourceName, requestID, parts[2]);
 
         if (!createdContainer) {
             const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestID,
                 [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                 [CustomHeaders.StatusCode]: statusCode,
             });
-            return res.end(JSON.stringify({ error: 'Something went wrong while creating Container' }));
+            return response.end(JSON.stringify({ error: 'Something went wrong while creating Container' }));
         }
 
-        res.writeHead(201, {
-            [CustomHeaders.ResourceID]: createdContainer[ShortName.ResourceID],
+        response.writeHead(201, {
+            [CustomHeaders.RequestID]: requestID,
             [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.Container}`,
         });
 
-        return res.end(JSON.stringify({ [CustomAttributes.Container]: createdContainer }));
+        return response.end(JSON.stringify({ [CustomAttributes.Container]: createdContainer }));
     }
 
-    private retrieveContainer(req: IncomingMessage, res: ServerResponse) {
-        if (req.url) {
-            const baseUrl = `http://${req.headers.host}`;
-            const url = new URL(req.url, baseUrl);
+    private retrieveContainer(request: IncomingMessage, response: ServerResponse, requestId: string) {
+        if (request.url) {
+            const baseUrl = `http://${request.headers.host}`;
+            const url = new URL(request.url, baseUrl);
 
             let pathname = url.pathname;
 
@@ -443,11 +440,11 @@ export class Controller {
             let container = this.service.getContainer(rn);
             if (container === undefined) {
                 const statusCode = StatusCode.NOT_FOUND;
-                res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
                     [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                     [CustomHeaders.StatusCode]: statusCode,
                 });
-                return res.end(JSON.stringify({ error: 'Not Found' }));
+                return response.end(JSON.stringify({ error: 'Not Found' }));
             }
 
             let payload = null;
@@ -471,51 +468,34 @@ export class Controller {
 
             // 6) Devolve 200 OK
             const statusCode = StatusCode.OK;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestId,
                 [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
                 [CustomHeaders.StatusCode]: statusCode,
             });
 
-            return res.end(JSON.stringify(payload));
+            return response.end(JSON.stringify(payload));
         } else {
             const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestId,
                 [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                 [CustomHeaders.StatusCode]: statusCode,
             });
-            return res.end(JSON.stringify({ error: 'Something went wrong while retrieving the container' }));
+            return response.end(JSON.stringify({ error: 'Something went wrong while retrieving the container' }));
         }
     }
 
-    private createContentInstance(req: IncomingMessage, body: string, res: ServerResponse) {
-        const resourceId = req.headers[CustomHeaders.ResourceID];
-
-        if (!resourceId) {
-            const statusCode = StatusCode.BAD_REQUEST;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
-                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
-                [CustomHeaders.StatusCode]: statusCode,
-            });
-            return res.end(JSON.stringify({ error: `Missing mandatory '${CustomHeaders.ResourceID}' header` }));
-        }
-
-        if (!req.url) {
-            const statusCode = StatusCode.BAD_REQUEST;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
-                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
-                [CustomHeaders.StatusCode]: statusCode,
-            });
-            return res.end(JSON.stringify({ error: 'Invalid URL' }));
-        }
-
+    private createContentInstance(request: IncomingMessage, body: string, response: ServerResponse, requestID: string) {
         const { [CustomAttributes.ContentInstance]: contentInstanceBody } = JSON.parse(body);
         if (!contentInstanceBody) {
             const statusCode = StatusCode.BAD_REQUEST;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
                 [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                 [CustomHeaders.StatusCode]: statusCode,
+                [CustomHeaders.RequestID]: requestID,
             });
-            return res.end(JSON.stringify({ error: `Missing (${CustomAttributes.ContentInstance})` }));
+            return response.end(JSON.stringify({ error: `Missing (${CustomAttributes.ContentInstance})` }));
         }
 
         const {
@@ -525,52 +505,55 @@ export class Controller {
 
         if (!resourceName) {
             const statusCode = StatusCode.BAD_REQUEST;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestID,
                 [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                 [CustomHeaders.StatusCode]: statusCode,
             });
-            return res.end(JSON.stringify({ error: `Missing (${ShortName.ResourceName}) in (${CustomAttributes.ContentInstance})` }));
+            return response.end(JSON.stringify({ error: `Missing (${ShortName.ResourceName}) in (${CustomAttributes.ContentInstance})` }));
         }
 
         if (!content) {
             const statusCode = StatusCode.BAD_REQUEST;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestID,
                 [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                 [CustomHeaders.StatusCode]: statusCode,
             });
-            return res.end(JSON.stringify({ error: `Missing (${ShortName.Content}) in (${CustomAttributes.ContentInstance})` }));
+            return response.end(JSON.stringify({ error: `Missing (${ShortName.Content}) in (${CustomAttributes.ContentInstance})` }));
         }
 
-        // req.url = '/onem2m/app_light/status'
-        const parts = req.url.split('/');
+        // request.url = '/onem2m/app_light/status'
+        const url = request.url!;
+        const parts = url.split('/');
         // parts = [ '', 'onem2m', 'app_light', 'status' ]
         // parts[3] = 'status' (eg: status is the container name)
         const containerName = parts[3];
         // parts[2] = 'app_light' (eg: app_light is the application entity name)
         const applicationEntityName = parts[2];
-        const createdContentInstance = this.service.createContentInstance(resourceName, resourceId as string, containerName, applicationEntityName, content);
+        const createdContentInstance = this.service.createContentInstance(resourceName, requestID, containerName, applicationEntityName, content);
 
         if (!createdContentInstance) {
             const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
                 [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                 [CustomHeaders.StatusCode]: statusCode,
             });
-            return res.end(JSON.stringify({ error: 'Something went wrong while creating content Instance' }));
+            return response.end(JSON.stringify({ error: 'Something went wrong while creating content Instance' }));
         }
 
-        res.writeHead(201, {
-            [CustomHeaders.ResourceID]: createdContentInstance[ShortName.ResourceID],
+        response.writeHead(201, {
+            [CustomHeaders.RequestID]: requestID,
             [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ContentInstance}`,
         });
 
-        return res.end(JSON.stringify({ [CustomAttributes.ContentInstance]: createdContentInstance }));
+        return response.end(JSON.stringify({ [CustomAttributes.ContentInstance]: createdContentInstance }));
     }
 
-    private retrieveContentInstance(req: IncomingMessage, res: ServerResponse) {
-        if (req.url) {
-            const baseUrl = `http://${req.headers.host}`;
-            const url = new URL(req.url, baseUrl);
+    private retrieveContentInstance(request: IncomingMessage, response: ServerResponse, requestId: string) {
+        if (request.url) {
+            const baseUrl = `http://${request.headers.host}`;
+            const url = new URL(request.url, baseUrl);
 
             let pathname = url.pathname;
 
@@ -584,22 +567,24 @@ export class Controller {
 
             if (container === undefined) {
                 const statusCode = StatusCode.NOT_FOUND;
-                res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.RequestID]: requestId,
                     [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                     [CustomHeaders.StatusCode]: statusCode,
                 });
-                return res.end(JSON.stringify({ error: 'Not Found' }));
+                return response.end(JSON.stringify({ error: 'Not Found' }));
             }
 
             let contentInstances = this.service.getContentInstancesByParentId(container[ShortName.ResourceID]);
 
             if (contentInstances === undefined) {
                 const statusCode = StatusCode.NOT_FOUND;
-                res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.RequestID]: requestId,
                     [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                     [CustomHeaders.StatusCode]: statusCode,
                 });
-                return res.end(JSON.stringify({ error: 'Not Found' }));
+                return response.end(JSON.stringify({ error: 'Not Found' }));
             }
 
             let contentInstance = contentInstances
@@ -615,19 +600,20 @@ export class Controller {
 
             // 6) Devolve 200 OK
             const statusCode = StatusCode.OK;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
                 [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
                 [CustomHeaders.StatusCode]: statusCode,
             });
 
-            return res.end(JSON.stringify(payload));
+            return response.end(JSON.stringify(payload));
         } else {
             const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
-            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestId,
                 [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                 [CustomHeaders.StatusCode]: statusCode,
             });
-            return res.end(JSON.stringify({ error: 'Something went wrong while retrieving the content instance' }));
+            return response.end(JSON.stringify({ error: 'Something went wrong while retrieving the content instance' }));
         }
     }
 }
