@@ -13,6 +13,7 @@ import {
     isContentInstanceRetrieveRequest,
     isApplicationEntityUpdateRequest,
     isUpdateRequest,
+    isContainerUpdateRequest,
 } from '../utils/index';
 import { ContentInstanceModel } from '../models';
 
@@ -80,6 +81,8 @@ export class Controller {
 
     private updateRequest(req: IncomingMessage, body: string, res: ServerResponse) {
         if (isApplicationEntityUpdateRequest(req)) return this.updateAE(req, body, res);
+        
+        if (isContainerUpdateRequest(req)) return this.updateContainer(req, body, res);
 
         return this.notImplemented(req, res);
     }
@@ -347,7 +350,7 @@ export class Controller {
                 [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                 [CustomHeaders.StatusCode]: statusCode,
             });
-            return res.end(JSON.stringify({ error: 'Something went wrong while retrieving the AE' }));
+            return res.end(JSON.stringify({ error: 'Something went wrong while updating the AE' }));
         }
     }
 
@@ -488,6 +491,59 @@ export class Controller {
         });
 
         return res.end(JSON.stringify({ [CustomAttributes.Container]: createdContainer }));
+    }
+
+    private updateContainer(req: IncomingMessage, body: string, res: ServerResponse) {
+        if (req.url) {
+            const baseUrl = `http://${req.headers.host}`;
+            const url = new URL(req.url, baseUrl);
+
+            let pathname = url.pathname;
+
+            if (pathname.endsWith('/') && pathname.length > 1) pathname = pathname.slice(0, -1);
+
+            const segments = pathname.split('/').filter(Boolean);
+            const resourceName = segments[2];
+
+            // Busca a AE pelo resourceName
+            let container = this.service.getContainer(resourceName);
+            if (container === undefined) {
+                const statusCode = StatusCode.NOT_FOUND;
+                res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                return res.end(JSON.stringify({ error: 'Not Found' }));
+            }
+
+            const updatedContainer = this.service.updateContainer(resourceName);
+
+            if (!updatedContainer) {
+                const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+                res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                return res.end(JSON.stringify({ error: 'Something went wrong while updating container' }));
+            }
+
+            const rcn = parseInt(url.searchParams.get(ShortName.ResultContent) ?? "");
+
+            res.writeHead(200, {
+                [CustomHeaders.ResourceID]: updatedContainer[ShortName.ResourceID],
+                [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.Container}`,
+            });
+
+            return rcn === 0 ? res.end() : res.end(JSON.stringify({ [CustomAttributes.Container]: updatedContainer }));
+
+        } else {
+            const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+            res.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return res.end(JSON.stringify({ error: 'Something went wrong while updating the container' }));
+        }
     }
 
     private retrieveContainer(req: IncomingMessage, res: ServerResponse) {

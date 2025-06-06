@@ -9,5 +9,6 @@ export class ContainerModel extends Container {
         super(resourceName, resourceId);
         this[ShortName.ParentId] = parentApplicationEntityId;
         this[ShortName.CreationTime] = getTimestamp();
+        this[ShortName.LastModifiedTime] = '';
     }
 }

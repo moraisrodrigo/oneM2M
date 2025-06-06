@@ -52,6 +52,16 @@ export class Service {
         return newContainer;
     }
 
+    updateContainer(resourceName: string): ContainerModel | null {
+        const containerFound = this.db.containers.find((container) => container[ShortName.ResourceName] === resourceName);
+        if (!containerFound) return null;
+
+        containerFound[ShortName.LastModifiedTime] = getTimestamp();
+        this.save();
+
+        return containerFound;
+    }
+
     createContentInstance(
         resourceName: string,
         resourceId: string,

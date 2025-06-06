@@ -103,6 +103,34 @@ export const isApplicationEntityUpdateRequest = (req: IncomingMessage): boolean 
 
 }
 
+export const isContainerUpdateRequest = (req: IncomingMessage): boolean => {
+    // Only allow PUT requests
+    if (!req.url || !isPutRequest(req)) return false;
+
+    try {
+        const baseUrl = `http://${req.headers.host}`;
+        const url = new URL(req.url, baseUrl);
+
+        let pathname = url.pathname;
+
+        if (pathname.endsWith('/') && pathname.length > 1) pathname = pathname.slice(0, -1);
+
+        const segments = pathname.split('/').filter(Boolean);
+
+        // Must be “/<CSE_NAME()>”
+        const expected = `${CSE_NAME()}`;
+        if (segments[0] !== expected) return false;
+
+        if(segments.length !== 3) return false;
+
+        return true;
+
+    } catch {
+        return false;
+    }
+
+}
+
 export const isContainerCreateRequest = (req: IncomingMessage): boolean => {
     // Only allow POST requests
     if (!req.url || !isPostRequest(req)) return false;

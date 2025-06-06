@@ -5,6 +5,7 @@ export class Container {
     [ShortName.ResourceName]!: string;
     [ShortName.ResourceID]!: string;
     [ShortName.CreationTime]!: string;
+    [ShortName.LastModifiedTime]!: string;
 
     constructor(resourceName: string, resourceId: string) {
         this[ShortName.ResourceName] = resourceName;
