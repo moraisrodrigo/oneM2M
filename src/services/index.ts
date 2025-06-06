@@ -1,7 +1,7 @@
 import { getDB, saveDB } from '../db/index';
 import { ShortName } from '../types/index';
-import { getTimestamp } from "../utils/misc";
-import { ApplicationEntityModel, ContainerModel, ContentInstanceModel } from '../models/index';
+import { ApplicationEntity, Container, ContentInstance } from '../types';
+import { getTimestamp } from '../utils/misc';
 
 export class Service {
     private db = getDB();
@@ -10,11 +10,12 @@ export class Service {
         saveDB(this.db);
     }
 
-    createAE(resourceName: string, resourceId: string): ApplicationEntityModel | null {
-        const applicationEntityFound = this.db.AEs.find((ae) => ae[ShortName.ResourceID] === resourceId || ae[ShortName.ResourceName] === resourceName);
+    createAE(resourceName: string): ApplicationEntity | null {
+        const applicationEntityFound = this.db.AEs.find((ae) => ae[ShortName.ResourceName] === resourceName);
         if (applicationEntityFound) return null;
 
-        const newApplicationEntity = new ApplicationEntityModel(resourceName, resourceId);
+        const newApplicationEntity = new ApplicationEntity
+        (resourceName, getTimestamp());
         this.db.AEs.push(newApplicationEntity);
 
         this.save();
@@ -22,7 +23,7 @@ export class Service {
         return newApplicationEntity;
     }
 
-    updateAE(resourceName: string): ApplicationEntityModel | null {
+    updateAE(resourceName: string): ApplicationEntity | null {
         const applicationEntityFound = this.db.AEs.find((ae) => ae[ShortName.ResourceName] === resourceName);
         if (!applicationEntityFound) return null;
 
@@ -36,15 +37,16 @@ export class Service {
         resourceName: string,
         resourceId: string,
         parentApplicationEntityName: string
-    ): ContainerModel | null {
+    ): Container | null {
         const applicationEntityFound = this.db.AEs.find((applicationEntity) => applicationEntity[ShortName.ResourceName] === parentApplicationEntityName);
+        // Check if the application entity exists
         if (!applicationEntityFound) return null;
 
         const containerFound = this.db.containers.find((container) => container[ShortName.ParentId] === applicationEntityFound[ShortName.ResourceID]);
         // Check if the container already exists for the given parent application entity
         if (containerFound) return null;
 
-        const newContainer = new ContainerModel(resourceName, resourceId, applicationEntityFound[ShortName.ResourceID]);
+        const newContainer = new Container(resourceName, resourceId, applicationEntityFound[ShortName.ResourceID]);
         this.db.containers.push(newContainer);
 
         this.save();
@@ -52,7 +54,7 @@ export class Service {
         return newContainer;
     }
 
-    updateContainer(resourceName: string): ContainerModel | null {
+    updateContainer(resourceName: string): Container | null {
         const containerFound = this.db.containers.find((container) => container[ShortName.ResourceName] === resourceName);
         if (!containerFound) return null;
 
@@ -68,14 +70,16 @@ export class Service {
         parentContainerName: string,
         parentApplicationEntityName: string,
         content: any
-    ): ContentInstanceModel | null {
+    ): ContentInstance | null {
         const applicationEntityFound = this.db.AEs.find((applicationEntity) => applicationEntity[ShortName.ResourceName] === parentApplicationEntityName);
+        // Check if the application entity exists
         if (!applicationEntityFound) return null;
 
         const containerFound = this.db.containers.find((container) => container[ShortName.ParentId] === applicationEntityFound[ShortName.ResourceID] && container[ShortName.ResourceName] === parentContainerName);
+        // Check if the container exists for the given parent application entity
         if (!containerFound) return null;
 
-        const newContentInstance = new ContentInstanceModel(resourceName, resourceId, content, containerFound[ShortName.ResourceID]);
+        const newContentInstance = new ContentInstance(resourceName, resourceId, content, containerFound[ShortName.ResourceID]);
         this.db.contentInstances.push(newContentInstance);
 
         this.save();
@@ -83,39 +87,39 @@ export class Service {
         return newContentInstance;
     }
 
-    getAEs(): ApplicationEntityModel[] {
+    getAEs(): ApplicationEntity[] {
         return this.db.AEs;
     }
 
-    getAE(rn: String): ApplicationEntityModel|undefined {
+    getAE(rn: String): ApplicationEntity|undefined {
         return this.db.AEs.find((ae) => ae.rn === rn);
     }
 
-    getAEByResourceId(ri: String): ApplicationEntityModel|undefined {
+    getAEByResourceId(ri: String): ApplicationEntity|undefined {
         return this.db.AEs.find((ae) => ae.ri === ri);
     }
 
-    getContainers(): ContainerModel[] {
+    getContainers(): Container[] {
         return this.db.containers;
     }
 
-    getContainer(rn: String): ContainerModel|undefined {
+    getContainer(rn: String): Container|undefined {
         return this.db.containers.find((container) => container.rn === rn);
     }
 
-    getContainersByParentId(pi: String): ContainerModel[] {
+    getContainersByParentId(pi: String): Container[] {
         return this.db.containers.filter(container => container[ShortName.ParentId] === pi);
     }
 
-    getContainerByResourceId(ri: String): ContainerModel|undefined {
+    getContainerByResourceId(ri: String): Container|undefined {
         return this.db.containers.find((container) => container[ShortName.ResourceID] === ri);
     }
 
-    getContentInstances(): ContentInstanceModel[] {
+    getContentInstances(): ContentInstance[] {
         return this.db.contentInstances;
     }
 
-    getContentInstancesByParentId(pi: String): ContentInstanceModel[] {
+    getContentInstancesByParentId(pi: String): ContentInstance[] {
         return this.db.contentInstances.filter(contentInstance => contentInstance[ShortName.ParentId] === pi);
     }
 }

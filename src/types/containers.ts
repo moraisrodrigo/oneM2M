@@ -1,3 +1,4 @@
+import { getTimestamp } from "../utils/misc";
 import { ShortName, ResourceType } from "./index";
 
 export class Container {
@@ -6,10 +7,13 @@ export class Container {
     [ShortName.ResourceID]!: string;
     [ShortName.CreationTime]!: string;
     [ShortName.LastModifiedTime]!: string;
+    [ShortName.ParentId]!: string;
 
-    constructor(resourceName: string, resourceId: string) {
+    constructor(resourceName: string, resourceId: string, parentId: string) {
         this[ShortName.ResourceName] = resourceName;
         this[ShortName.ResourceID] = resourceId;
-        this[ShortName.CreationTime] = new Date().toISOString();
+        this[ShortName.CreationTime] = getTimestamp();
+        this[ShortName.LastModifiedTime] = '';
+        this[ShortName.ParentId] = parentId;
     }
 }
