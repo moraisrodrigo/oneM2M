@@ -13,4 +13,5 @@ export enum ShortName {
     ApplicationEntity = 'ae',
     FilterUsage = 'fu',
     ResultContent = 'rcn',
+    PointOfAccess = 'poa',
 }

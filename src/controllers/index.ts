@@ -1,7 +1,7 @@
 import { IncomingMessage, ServerResponse } from 'http';
 import { Service } from '../services/index';
 import { CustomHeaders, CustomAttributes, ResourceType, ShortName, StatusCode, HTTPStatusCodeMapping } from '../types/index';
-import { CSE_NAME, JSON_CONTENT_TYPE } from '../constants/index';
+import { PORT, APP_URL, CSE_ID, CSE_NAME, CSE_CREATION_TIME, JSON_CONTENT_TYPE } from '../constants/index';
 import {
     isApplicationEntityCreateRequest,
     isContainerCreateRequest,
@@ -79,6 +79,13 @@ export class Controller {
             const parsedUrl = new URL(req.url, `http://${req.headers.host}`);
 
             if (parsedUrl !== null) {
+
+                const rcn = parseInt(parsedUrl.searchParams.get(ShortName.ResultContent) ?? "");
+
+                if (rcn) {
+                    return this.getCSEBase(req, res, rcn);
+                }
+
                 const fu = parseInt(parsedUrl.searchParams.get(ShortName.FilterUsage) ?? "");
                 const ty = parseInt(parsedUrl.searchParams.get(ShortName.Type) ?? "");
 
@@ -103,6 +110,52 @@ export class Controller {
             [CustomHeaders.StatusCode]: statusCode,
         });
         res.end();
+    }
+
+    private getCSEBase(req: IncomingMessage, res: ServerResponse, rcn: Number) {
+        let payload = null;
+
+        if (rcn === 1) {
+            payload = {
+                [CustomAttributes.CSEBase]: {
+                    [ShortName.Type]: ResourceType.CSEBase,
+                    [ShortName.CreationTime]: CSE_CREATION_TIME(),
+                    [ShortName.ResourceID]: CSE_ID(),
+                    [ShortName.ResourceName]: CSE_NAME(),
+                    [ShortName.PointOfAccess]: [
+                        APP_URL() + ':' + PORT()
+                    ]
+                }
+            };
+        } else if (rcn === 4) {
+            const aes = this.service.getAEs();
+            const containers = this.service.getContainers();
+            const contentInstances = this.service.getContentInstances();
+
+            payload = {
+                [CustomAttributes.CSEBase]: {
+                    [ShortName.Type]: ResourceType.CSEBase,
+                    [ShortName.CreationTime]: CSE_CREATION_TIME(),
+                    [ShortName.ResourceID]: CSE_ID(),
+                    [ShortName.ResourceName]: CSE_NAME(),
+                    [ShortName.PointOfAccess]: [
+                        APP_URL() + ':' + PORT()
+                    ]
+                },
+                [CustomAttributes.ApplicationEntity]: aes,
+                [CustomAttributes.Container]: containers,
+                [CustomAttributes.ContentInstance]: contentInstances
+            };
+        }
+
+        // 6) Devolve 200 OK
+        const statusCode = StatusCode.OK;
+        res.writeHead(HTTPStatusCodeMapping[statusCode], {
+            [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
+            [CustomHeaders.StatusCode]: statusCode,
+        });
+
+        return res.end(JSON.stringify(payload));
     }
 
     private getAEs(req: IncomingMessage, res: ServerResponse, fu: Number) {
