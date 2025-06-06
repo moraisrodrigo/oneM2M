@@ -70,4 +70,36 @@ export class Service {
     getAEs(): ApplicationEntity[] {
         return this.db.AEs;
     }
+
+    getAE(rn: String): ApplicationEntityModel|undefined {
+        return this.db.AEs.find((ae) => ae.rn === rn);
+    }
+
+    getAEByResourceId(ri: String): ApplicationEntityModel|undefined {
+        return this.db.AEs.find((ae) => ae.ri === ri);
+    }
+
+    getContainers(): ContainerModel[] {
+        return this.db.containers;
+    }
+
+    getContainer(rn: String): ContainerModel|undefined {
+        return this.db.containers.find((container) => container.rn === rn);
+    }
+
+    getContainersByParentId(pi: String): ContainerModel[] {
+        return this.db.containers.filter(container => container[ShortName.ParentId] === pi);
+    }
+
+    getContainerByResourceId(ri: String): ContainerModel|undefined {
+        return this.db.containers.find((container) => container[ShortName.ResourceID] === ri);
+    }
+
+    getContentInstances(): ContentInstanceModel[] {
+        return this.db.contentInstances;
+    }
+
+    getContentInstancesByParentId(pi: String): ContentInstanceModel[] {
+        return this.db.contentInstances.filter(contentInstance => contentInstance[ShortName.ParentId] === pi);
+    }
 }

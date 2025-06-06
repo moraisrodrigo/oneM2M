@@ -11,4 +11,7 @@ export enum ShortName {
     ContainerName = 'cn',
     ContentInstance = 'cin',
     ApplicationEntity = 'ae',
+    FilterUsage = 'fu',
+    ResultContent = 'rcn',
+    PointOfAccess = 'poa',
 }
