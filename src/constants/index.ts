@@ -8,18 +8,26 @@ export function getEnvVar(key: string, fallback?: string): string {
     return val ?? fallback!;
 }
 
+export enum ENV_KEYS {
+    PORT = 'PORT',
+    APP_URL = 'APP_URL',
+    CSE_NAME = 'CSE_NAME',
+    CSE_ID = 'CSE_ID',
+    CSE_CREATION_TIME = 'CSE_CREATION_TIME',
+}
+
 export const JSON_CONTENT_TYPE = "application/json";
 
 export const DB_FILE_PATH = join(__dirname, '../db/db.json');
 
 export const ENV_FILE_PATH = join(__dirname, '../../.env');
 
-export const PORT = () => getEnvVar('PORT', '3000');
+export const PORT = () => getEnvVar(ENV_KEYS.PORT, '3000');
 
-export const APP_URL = () => getEnvVar('APP_URL', '');
+export const APP_URL = () => getEnvVar(ENV_KEYS.APP_URL, '');
 
-export const CSE_ID = () => getEnvVar('CSE_ID', '');
+export const CSE_ID = () => getEnvVar(ENV_KEYS.CSE_ID, '');
 
-export const CSE_NAME = () => getEnvVar('CSE_NAME', '');
+export const CSE_NAME = () => getEnvVar(ENV_KEYS.CSE_NAME, '');
 
-export const CSE_CREATION_TIME = () => getEnvVar('CSE_CREATION_TIME', '');
+export const CSE_CREATION_TIME = () => getEnvVar(ENV_KEYS.CSE_CREATION_TIME, '');
