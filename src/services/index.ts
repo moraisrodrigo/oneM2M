@@ -109,6 +109,18 @@ export class Service {
         return newContentInstance;
     }
 
+    deleteContentInstance(parentId: string): boolean {
+        const contentInstance = this.db.contentInstances.filter((ci) => ci.pi === parentId).sort((a, b) => b.ct.localeCompare(a.ct))[0];
+        const contentInstanceIndex = this.db.contentInstances.findIndex((ci) => ci[ShortName.ResourceID] === contentInstance.ri);
+        if (contentInstanceIndex !== -1) {
+            this.db.contentInstances.splice(contentInstanceIndex);
+            this.save();
+            return true;
+        }
+
+        return false;
+    }
+
     getAEs(): ApplicationEntity[] {
         return this.db.AEs;
     }
