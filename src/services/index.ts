@@ -33,6 +33,17 @@ export class Service {
         return applicationEntityFound;
     }
 
+    deleteAE(resourceName: string): boolean {
+        const applicationEntityIndex = this.db.AEs.findIndex((ae) => ae[ShortName.ResourceName] === resourceName);
+        if (applicationEntityIndex !== -1) {
+            this.db.AEs.splice(applicationEntityIndex);
+            this.save();
+            return true;
+        }
+
+        return false;
+    }
+
     createContainer(
         resourceName: string,
         resourceId: string,

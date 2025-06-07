@@ -280,3 +280,31 @@ export const isContentInstanceRetrieveRequest = (request: IncomingMessage): bool
         return false;
     }
 };
+
+export const isApplicationEntityDeleteRequest = (request: IncomingMessage): boolean => {
+    // Only allow DELETE requests
+    if (!request.url || !isDeleteRequest(request)) return false;
+
+    try {
+        const baseUrl = `http://${request.headers.host}`;
+        const url = new URL(request.url, baseUrl);
+
+        let pathname = url.pathname;
+
+        if (pathname.endsWith('/') && pathname.length > 1) pathname = pathname.slice(0, -1);
+
+        const segments = pathname.split('/').filter(Boolean);
+
+        // Must be “/<CSE_NAME()>”
+        const expected = `${CSE_NAME()}`;
+        if (segments[0] !== expected) return false;
+
+        if(segments.length !== 2) return false;
+
+        return true;
+
+    } catch {
+        return false;
+    }
+
+}

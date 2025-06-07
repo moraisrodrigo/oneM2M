@@ -14,6 +14,7 @@ import {
     isApplicationEntityUpdateRequest,
     isUpdateRequest,
     isContainerUpdateRequest,
+    isApplicationEntityDeleteRequest,
 } from '../utils/index';
 import { getTimestamp } from '../utils/misc';
 
@@ -67,6 +68,8 @@ export class Controller {
                 if (isContainerRetrieveRequest(request)) return this.retrieveContainer(request, response, requestID as string);
 
                 if (isContentInstanceRetrieveRequest(request)) return this.retrieveContentInstance(request, response, requestID as string);
+                
+                if (isApplicationEntityDeleteRequest(request)) return this.deleteAE(request, body, response, requestID as string);
 
                 const statusCode = StatusCode.NOT_FOUND;
                 response.writeHead(HTTPStatusCodeMapping[statusCode], {
@@ -344,6 +347,60 @@ export class Controller {
             });
 
             return rcn === 0 ? response.end() : response.end(JSON.stringify({ [CustomAttributes.ApplicationEntity]: updatedAE }));
+
+        } else {
+            const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestId,
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return response.end(JSON.stringify({ error: 'Something went wrong while updating the AE' }));
+        }
+    }
+
+    private deleteAE(request: IncomingMessage, body: string, response: ServerResponse, requestId: string) {
+        if (request.url) {
+            const baseUrl = `http://${request.headers.host}`;
+            const url = new URL(request.url, baseUrl);
+
+            let pathname = url.pathname;
+
+            if (pathname.endsWith('/') && pathname.length > 1) pathname = pathname.slice(0, -1);
+
+            const segments = pathname.split('/').filter(Boolean);
+            const resourceName = segments[1];
+
+            // Busca a AE pelo resourceName
+            let ae = this.service.getAE(resourceName);
+            if (ae === undefined) {
+                const statusCode = StatusCode.NOT_FOUND;
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.RequestID]: requestId,
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                return response.end(JSON.stringify({ error: 'Not Found' }));
+            }
+
+            const result = this.service.deleteAE(resourceName);
+
+            if (!result) {
+                const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.RequestID]: requestId,
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                return response.end(JSON.stringify({ error: 'Something went wrong while deleting AE' }));
+            }
+
+            response.writeHead(200, {
+                [CustomHeaders.RequestID]: requestId,
+                [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
+            });
+
+            return response.end();
 
         } else {
             const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
