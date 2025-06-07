@@ -75,6 +75,17 @@ export class Service {
         return containerFound;
     }
 
+    deleteContainer(resourceName: string): boolean {
+        const containerIndex = this.db.containers.findIndex((container) => container[ShortName.ResourceName] === resourceName);
+        if (containerIndex !== -1) {
+            this.db.containers.splice(containerIndex);
+            this.save();
+            return true;
+        }
+
+        return false;
+    }
+
     createContentInstance(
         resourceName: string,
         resourceId: string,

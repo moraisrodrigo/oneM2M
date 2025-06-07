@@ -15,6 +15,7 @@ import {
     isUpdateRequest,
     isContainerUpdateRequest,
     isApplicationEntityDeleteRequest,
+    isContainerDeleteRequest,
 } from '../utils/index';
 import { getTimestamp } from '../utils/misc';
 
@@ -70,6 +71,8 @@ export class Controller {
                 if (isContentInstanceRetrieveRequest(request)) return this.retrieveContentInstance(request, response, requestID as string);
                 
                 if (isApplicationEntityDeleteRequest(request)) return this.deleteAE(request, body, response, requestID as string);
+                
+                if (isContainerDeleteRequest(request)) return this.deleteContainer(request, body, response, requestID as string);
 
                 const statusCode = StatusCode.NOT_FOUND;
                 response.writeHead(HTTPStatusCodeMapping[statusCode], {
@@ -409,7 +412,7 @@ export class Controller {
                 [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
                 [CustomHeaders.StatusCode]: statusCode,
             });
-            return response.end(JSON.stringify({ error: 'Something went wrong while updating the AE' }));
+            return response.end(JSON.stringify({ error: 'Something went wrong while deleting the AE' }));
         }
     }
 
@@ -602,6 +605,60 @@ export class Controller {
                 [CustomHeaders.StatusCode]: statusCode,
             });
             return response.end(JSON.stringify({ error: 'Something went wrong while updating the container' }));
+        }
+    }
+
+    private deleteContainer(request: IncomingMessage, body: string, response: ServerResponse, requestId: string) {
+        if (request.url) {
+            const baseUrl = `http://${request.headers.host}`;
+            const url = new URL(request.url, baseUrl);
+
+            let pathname = url.pathname;
+
+            if (pathname.endsWith('/') && pathname.length > 1) pathname = pathname.slice(0, -1);
+
+            const segments = pathname.split('/').filter(Boolean);
+            const resourceName = segments[2];
+
+            // Busca a container pelo resourceName
+            let container = this.service.getContainer(resourceName);
+            if (container === undefined) {
+                const statusCode = StatusCode.NOT_FOUND;
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.RequestID]: requestId,
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                return response.end(JSON.stringify({ error: 'Not Found' }));
+            }
+
+            const result = this.service.deleteContainer(resourceName);
+
+            if (!result) {
+                const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.RequestID]: requestId,
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                return response.end(JSON.stringify({ error: 'Something went wrong while deleting container' }));
+            }
+
+            response.writeHead(200, {
+                [CustomHeaders.RequestID]: requestId,
+                [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.Container}`,
+            });
+
+            return response.end();
+
+        } else {
+            const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestId,
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return response.end(JSON.stringify({ error: 'Something went wrong while deleting the container' }));
         }
     }
 

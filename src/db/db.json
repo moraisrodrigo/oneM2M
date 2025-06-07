@@ -1,5 +1,14 @@
 {
-  "AEs": [],
+  "AEs": [
+    {
+      "ty": 2,
+      "rn": "Light",
+      "ri": "20250607T202106",
+      "pi": "onem2m",
+      "ct": "20250607T202106",
+      "lt": ""
+    }
+  ],
   "containers": [],
   "contentInstances": []
 }
