@@ -14,4 +14,5 @@ export enum ShortName {
     FilterUsage = 'fu',
     ResultContent = 'rcn',
     PointOfAccess = 'poa',
+    CommandType = 'cmt',
 }

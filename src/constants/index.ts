@@ -23,7 +23,7 @@ export const DB_FILE_PATH = join(__dirname, '../db/db.json');
 
 export const ENV_FILE_PATH = join(__dirname, '../../.env');
 
-export const PORT = () => getEnvVar(ENV_KEYS.PORT, '3000');
+export const PORT = (): number => Number(getEnvVar(ENV_KEYS.PORT, '3000'));
 
 export const APP_URL = () => getEnvVar(ENV_KEYS.APP_URL, 'localhost');
 

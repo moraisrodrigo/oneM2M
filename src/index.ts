@@ -1,13 +1,56 @@
 import http from 'http';
 import { loadEnv } from './utils/env';
 import { Service } from './services/index';
-import { Controller } from './controllers/index';
-import { PORT } from './constants';
+import { Controller } from './controllers';
+import { ManagementController } from './controllers/management';
+import { PORT, APP_URL } from './constants';
+import { isManagementRelatedRequest } from './utils';
 
 loadEnv();
 
-const controller = new Controller(new Service());
+class OneM2M {
+    private service: Service;
+    private server: http.Server;
+    private controller: Controller;
+    private managementController: ManagementController;
 
-const server = http.createServer((req, res) => controller.handleRequest(req, res));
+    constructor() {
+        console.log("Device is starting...");
+        const service = new Service();
+        this.service = service;
+        this.controller = new Controller(service);
+        this.managementController = new ManagementController();
+        this.server = http.createServer(this.requestListener.bind(this));
+    }
 
-server.listen(PORT(), () => console.log(`Device running on http://localhost:${PORT()}`));
+    private requestListener(request: http.IncomingMessage, response: http.ServerResponse) {
+        if (isManagementRelatedRequest(request)) return this.managementController.handleRequest(request, response, this.stop.bind(this));
+
+        this.controller.handleRequest(request, response);
+    }
+
+    private restart() {
+        this.service = new Service();
+        this.controller = new Controller(this.service);
+        this.managementController = new ManagementController();
+        this.server = http.createServer(this.requestListener.bind(this));
+        this.start();
+    }
+
+    private stop() {
+        this.server.close(this.restart.bind(this));
+    }
+
+    start() {
+        this.server.listen(PORT(), APP_URL(), () => {
+            const addressConf = this.server.address();
+            const address = typeof addressConf === 'string' ? addressConf : addressConf?.address ?? 'localhost';
+
+            console.log(`Device running on http://${address}:${PORT()}`);
+        });
+    }
+}
+
+const oneM2M = new OneM2M();
+
+oneM2M.start();
