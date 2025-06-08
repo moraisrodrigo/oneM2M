@@ -1,15 +1,16 @@
 import { readFileSync } from 'fs';
-import { ENV_FILE_PATH } from '../constants';
+import { ENV_FILE_PATH, ENV_KEYS } from '../constants';
+import { getTimestamp } from "./misc";
 
-interface EnvConfig {
-    PORT: string;
-    CSE_NAME: string;
-}
+type EnvConfig = Record<ENV_KEYS, string>;
 
-function parseArgs(): Partial<EnvConfig> {
+const parseArgs = (): Partial<EnvConfig> => {
     const args = process.argv.slice(2);
 
     const config: Partial<EnvConfig> = {};
+
+    // Set CSEBase creation time
+    config.CSE_CREATION_TIME = getTimestamp();
 
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
@@ -47,17 +48,28 @@ export const loadEnv = () => {
 
         // Then override with command line arguments
         const argsConfig = parseArgs();
-        Object.entries(argsConfig).forEach(([key, value]) => {
-            process.env[key] = value;
-        });
+        Object.entries(argsConfig).forEach(([key, value]) => process.env[key] = value);
+
     } catch (error) {
         console.error('Error loading .env file:', error);
 
         // Even if .env fails, still try to load command line arguments
         const argsConfig = parseArgs();
-        Object.entries(argsConfig).forEach(([key, value]) => {
-            process.env[key] = value;
-        });
-
+        Object.entries(argsConfig).forEach(([key, value]) => process.env[key] = value);
     }
+
+    // SHOW ALL ENV VARS
+    printAllEnvVars();
+}
+
+const printAllEnvVars = () => {
+    const ApplicationEnvKeys = Object.values(ENV_KEYS).map(key => key.toUpperCase());
+
+    console.log('-----------------------------------');
+    console.log('Environment Variables:');
+    const applicationEnvs = Object.entries(process.env).filter(([key]) => ApplicationEnvKeys.includes(key)).map(([key, value]) => ({ key, value }));
+
+    console.table(applicationEnvs);
+
+    console.log('-----------------------------------');
 }

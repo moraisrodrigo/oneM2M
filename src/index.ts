@@ -10,4 +10,4 @@ const controller = new Controller(new Service());
 
 const server = http.createServer((req, res) => controller.handleRequest(req, res));
 
-server.listen(PORT(), () => console.log(`oneM2M device running on http://localhost:${PORT()}`));
+server.listen(PORT(), () => console.log(`Device running on http://localhost:${PORT()}`));
