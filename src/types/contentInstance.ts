@@ -10,9 +10,9 @@ export class ContentInstance {
     [ShortName.Content]!: any;
     [ShortName.ParentId]!: string;
 
-    constructor(resourceName: string, resourceId: string, content: any, parentId: string) {
-        this[ShortName.ResourceName] = resourceName;
-        this[ShortName.ResourceID] = resourceId;
+    constructor(content: any, parentId: string) {
+        this[ShortName.ResourceID] = getTimestamp();
+        this[ShortName.ResourceName] = "cin_" + getTimestamp();
         this[ShortName.CreationTime] = getTimestamp();
         this[ShortName.Content] = content;
         this[ShortName.ParentId] = parentId;
