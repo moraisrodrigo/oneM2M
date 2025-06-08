@@ -282,7 +282,18 @@ export class Controller {
     }
 
     private createAE(body: string, response: ServerResponse, requestID: string) {
-        let { [ShortName.ResourceName]: resourceName } = JSON.parse(body);
+        const { [CustomAttributes.ApplicationEntity]: applicationEntityBody } = JSON.parse(body);
+        if (!applicationEntityBody) {
+            const statusCode = StatusCode.BAD_REQUEST;
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestID,
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return response.end(JSON.stringify({ error: `Missing (${CustomAttributes.ApplicationEntity})` }));
+        }
+
+        let { [ShortName.ResourceName]: resourceName } = applicationEntityBody;
 
         if (!resourceName) {
             // make a unique resource name if not provided
