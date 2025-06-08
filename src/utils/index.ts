@@ -93,7 +93,7 @@ export const isApplicationEntityUpdateRequest = (request: IncomingMessage): bool
         const expected = `${CSE_NAME()}`;
         if (segments[0] !== expected) return false;
 
-        if(segments.length !== 2) return false;
+        if (segments.length !== 2) return false;
 
         return true;
 
@@ -121,7 +121,7 @@ export const isContainerUpdateRequest = (request: IncomingMessage): boolean => {
         const expected = `${CSE_NAME()}`;
         if (segments[0] !== expected) return false;
 
-        if(segments.length !== 3) return false;
+        if (segments.length !== 3) return false;
 
         return true;
 
@@ -215,7 +215,7 @@ export const isApplicationEntityRetrieveRequest = (request: IncomingMessage): bo
         const expected = `${CSE_NAME()}`;
         if (segments[0] !== expected) return false;
 
-        if(segments.length !== 2) return false;
+        if (segments.length !== 2) return false;
 
         // 5) Query‐params são permitidos (fu, rty, drt, etc.), não precisam de validação aqui
         return true;
@@ -243,7 +243,7 @@ export const isContainerRetrieveRequest = (request: IncomingMessage): boolean =>
         const expected = `${CSE_NAME()}`;
         if (segments[0] !== expected) return false;
 
-        if(segments.length !== 3) return false;
+        if (segments.length !== 3) return false;
 
         // 5) Query‐params são permitidos (fu, rty, drt, etc.), não precisam de validação aqui
         return true;
@@ -271,7 +271,7 @@ export const isContentInstanceRetrieveRequest = (request: IncomingMessage): bool
         const expected = `${CSE_NAME()}`;
         if (segments[0] !== expected) return false;
 
-        if(segments.length !== 4) return false;
+        if (segments.length !== 4) return false;
 
         // 5) Query‐params são permitidos (fu, rty, drt, etc.), não precisam de validação aqui
         return true;
@@ -299,7 +299,7 @@ export const isApplicationEntityDeleteRequest = (request: IncomingMessage): bool
         const expected = `${CSE_NAME()}`;
         if (segments[0] !== expected) return false;
 
-        if(segments.length !== 2) return false;
+        if (segments.length !== 2) return false;
 
         return true;
 
@@ -326,7 +326,7 @@ export const isContainerDeleteRequest = (request: IncomingMessage): boolean => {
         const expected = `${CSE_NAME()}`;
         if (segments[0] !== expected) return false;
 
-        if(segments.length !== 3) return false;
+        if (segments.length !== 3) return false;
 
         return true;
 
@@ -353,7 +353,7 @@ export const isContentInstanceDeleteRequest = (request: IncomingMessage): boolea
         const expected = `${CSE_NAME()}`;
         if (segments[0] !== expected) return false;
 
-        if(segments.length !== 4) return false;
+        if (segments.length !== 4) return false;
 
         return true;
 
@@ -361,3 +361,45 @@ export const isContentInstanceDeleteRequest = (request: IncomingMessage): boolea
         return false;
     }
 }
+
+export const isManagementCommandRequest = (request: IncomingMessage): boolean => {
+    // Only allow POST requests
+    if (!request.url || !isPostRequest(request)) return false;
+
+    const { [CustomHeaders.ContentType]: contentType } = request.headers;
+
+    // If Content-Type header is not present, return false
+    if (!contentType) return false;
+
+    const contentTypes = contentType.replace(new RegExp(' ', 'g'), '').split(';');
+    if (contentTypes.length < 2) return false;
+    const typeIdentifierAux = contentTypes[1].split('=');
+    if (typeIdentifierAux.length < 2) return false;
+    const typeIdentifier = typeIdentifierAux[0].toLowerCase();
+    const typeValue = typeIdentifierAux[1];
+    if (typeIdentifier !== ShortName.Type || Number(typeValue) !== ResourceType.Management) return false;
+
+    return request.url.startsWith(`/${CSE_NAME()}`);
+}
+
+export const isManagementCommandRetrieveRequest = (request: IncomingMessage): boolean => {
+    // Only allow POST requests
+    if (!request.url || !isGetRequest(request)) return false;
+
+    const { [CustomHeaders.ContentType]: contentType } = request.headers;
+
+    // If Content-Type header is not present, return false
+    if (!contentType) return false;
+
+    const contentTypes = contentType.replace(new RegExp(' ', 'g'), '').split(';');
+    if (contentTypes.length < 2) return false;
+    const typeIdentifierAux = contentTypes[1].split('=');
+    if (typeIdentifierAux.length < 2) return false;
+    const typeIdentifier = typeIdentifierAux[0].toLowerCase();
+    const typeValue = typeIdentifierAux[1];
+    if (typeIdentifier !== ShortName.Type || Number(typeValue) !== ResourceType.Management) return false;
+
+    return request.url.startsWith(`/${CSE_NAME()}`);
+}
+
+export const isManagementRelatedRequest = (request: IncomingMessage): boolean => isManagementCommandRequest(request) || isManagementCommandRetrieveRequest(request);

@@ -4,9 +4,9 @@ import { DBType } from '../types/index';
 import { DB_FILE_PATH } from '../constants/index';
 import data from './db.json';
 
-export function getDB() {
-    const defaultStructure: DBType = { AEs: [], containers: [], contentInstances: [] };
+const defaultStructure: DBType = { AEs: [], containers: [], contentInstances: [] };
 
+export function getDB() {
     if (!data) return defaultStructure;
 
     if (!data.AEs || !data.containers || !data.contentInstances) return defaultStructure;
@@ -22,4 +22,8 @@ export function saveDB(data: DBType): void {
     }
 
     writeFileSync(DB_FILE_PATH, JSON.stringify(data, null, 2));
+}
+
+export function resetDataBase(): void {
+    saveDB(defaultStructure);
 }

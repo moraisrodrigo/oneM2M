@@ -122,8 +122,6 @@ export class Service {
     }
 
     createContentInstance(
-        resourceName: string,
-        resourceId: string,
         parentContainerName: string,
         parentApplicationEntityName: string,
         content: any
@@ -136,7 +134,7 @@ export class Service {
         // Check if the container exists for the given parent application entity
         if (!containerFound) return null;
 
-        const newContentInstance = new ContentInstance(resourceName, resourceId, content, containerFound[ShortName.ResourceID]);
+        const newContentInstance = new ContentInstance(content, containerFound[ShortName.ResourceID]);
         this.db.contentInstances.push(newContentInstance);
 
         this.save();

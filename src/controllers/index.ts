@@ -282,7 +282,18 @@ export class Controller {
     }
 
     private createAE(body: string, response: ServerResponse, requestID: string) {
-        let { [ShortName.ResourceName]: resourceName } = JSON.parse(body);
+        const { [CustomAttributes.ApplicationEntity]: applicationEntityBody } = JSON.parse(body);
+        if (!applicationEntityBody) {
+            const statusCode = StatusCode.BAD_REQUEST;
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestID,
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return response.end(JSON.stringify({ error: `Missing (${CustomAttributes.ApplicationEntity})` }));
+        }
+
+        let { [ShortName.ResourceName]: resourceName } = applicationEntityBody;
 
         if (!resourceName) {
             // make a unique resource name if not provided
@@ -740,19 +751,8 @@ export class Controller {
         }
 
         const {
-            [ShortName.ResourceName]: resourceName,
             [ShortName.Content]: content,
         } = contentInstanceBody;
-
-        if (!resourceName) {
-            const statusCode = StatusCode.BAD_REQUEST;
-            response.writeHead(HTTPStatusCodeMapping[statusCode], {
-                [CustomHeaders.RequestID]: requestID,
-                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
-                [CustomHeaders.StatusCode]: statusCode,
-            });
-            return response.end(JSON.stringify({ error: `Missing (${ShortName.ResourceName}) in (${CustomAttributes.ContentInstance})` }));
-        }
 
         if (!content) {
             const statusCode = StatusCode.BAD_REQUEST;
@@ -772,7 +772,7 @@ export class Controller {
         const containerName = parts[3];
         // parts[2] = 'app_light' (eg: app_light is the application entity name)
         const applicationEntityName = parts[2];
-        const createdContentInstance = this.service.createContentInstance(resourceName, requestID, containerName, applicationEntityName, content);
+        const createdContentInstance = this.service.createContentInstance(containerName, applicationEntityName, content);
 
         if (!createdContentInstance) {
             const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
