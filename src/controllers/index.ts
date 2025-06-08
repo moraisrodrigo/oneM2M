@@ -14,6 +14,9 @@ import {
     isApplicationEntityUpdateRequest,
     isUpdateRequest,
     isContainerUpdateRequest,
+    isApplicationEntityDeleteRequest,
+    isContainerDeleteRequest,
+    isContentInstanceDeleteRequest,
 } from '../utils/index';
 import { getTimestamp } from '../utils/misc';
 
@@ -67,6 +70,12 @@ export class Controller {
                 if (isContainerRetrieveRequest(request)) return this.retrieveContainer(request, response, requestID as string);
 
                 if (isContentInstanceRetrieveRequest(request)) return this.retrieveContentInstance(request, response, requestID as string);
+                
+                if (isApplicationEntityDeleteRequest(request)) return this.deleteAE(request, body, response, requestID as string);
+                
+                if (isContainerDeleteRequest(request)) return this.deleteContainer(request, body, response, requestID as string);
+
+                if (isContentInstanceDeleteRequest(request)) return this.deleteContentInstance(request, body, response, requestID as string);
 
                 const statusCode = StatusCode.NOT_FOUND;
                 response.writeHead(HTTPStatusCodeMapping[statusCode], {
@@ -356,6 +365,60 @@ export class Controller {
         }
     }
 
+    private deleteAE(request: IncomingMessage, body: string, response: ServerResponse, requestId: string) {
+        if (request.url) {
+            const baseUrl = `http://${request.headers.host}`;
+            const url = new URL(request.url, baseUrl);
+
+            let pathname = url.pathname;
+
+            if (pathname.endsWith('/') && pathname.length > 1) pathname = pathname.slice(0, -1);
+
+            const segments = pathname.split('/').filter(Boolean);
+            const resourceName = segments[1];
+
+            // Busca a AE pelo resourceName
+            let ae = this.service.getAE(resourceName);
+            if (ae === undefined) {
+                const statusCode = StatusCode.NOT_FOUND;
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.RequestID]: requestId,
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                return response.end(JSON.stringify({ error: 'Not Found' }));
+            }
+
+            const result = this.service.deleteAE(resourceName);
+
+            if (!result) {
+                const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.RequestID]: requestId,
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                return response.end(JSON.stringify({ error: 'Something went wrong while deleting AE' }));
+            }
+
+            response.writeHead(200, {
+                [CustomHeaders.RequestID]: requestId,
+                [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ApplicationEntity}`,
+            });
+
+            return response.end();
+
+        } else {
+            const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestId,
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return response.end(JSON.stringify({ error: 'Something went wrong while deleting the AE' }));
+        }
+    }
+
     private retrieveAE(request: IncomingMessage, response: ServerResponse, requestId: string) {
         if (request.url) {
             const baseUrl = `http://${request.headers.host}`;
@@ -548,6 +611,60 @@ export class Controller {
         }
     }
 
+    private deleteContainer(request: IncomingMessage, body: string, response: ServerResponse, requestId: string) {
+        if (request.url) {
+            const baseUrl = `http://${request.headers.host}`;
+            const url = new URL(request.url, baseUrl);
+
+            let pathname = url.pathname;
+
+            if (pathname.endsWith('/') && pathname.length > 1) pathname = pathname.slice(0, -1);
+
+            const segments = pathname.split('/').filter(Boolean);
+            const resourceName = segments[2];
+
+            // Busca a container pelo resourceName
+            let container = this.service.getContainer(resourceName);
+            if (container === undefined) {
+                const statusCode = StatusCode.NOT_FOUND;
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.RequestID]: requestId,
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                return response.end(JSON.stringify({ error: 'Not Found' }));
+            }
+
+            const result = this.service.deleteContainer(resourceName);
+
+            if (!result) {
+                const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.RequestID]: requestId,
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                return response.end(JSON.stringify({ error: 'Something went wrong while deleting container' }));
+            }
+
+            response.writeHead(200, {
+                [CustomHeaders.RequestID]: requestId,
+                [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.Container}`,
+            });
+
+            return response.end();
+
+        } else {
+            const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestId,
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return response.end(JSON.stringify({ error: 'Something went wrong while deleting the container' }));
+        }
+    }
+
     private retrieveContainer(request: IncomingMessage, response: ServerResponse, requestId: string) {
         if (request.url) {
             const baseUrl = `http://${request.headers.host}`;
@@ -672,6 +789,61 @@ export class Controller {
         });
 
         return response.end(JSON.stringify({ [CustomAttributes.ContentInstance]: createdContentInstance }));
+    }
+
+    private deleteContentInstance(request: IncomingMessage, body: string, response: ServerResponse, requestId: string) {
+        if (request.url) {
+            const baseUrl = `http://${request.headers.host}`;
+            const url = new URL(request.url, baseUrl);
+
+            let pathname = url.pathname;
+
+            if (pathname.endsWith('/') && pathname.length > 1) pathname = pathname.slice(0, -1);
+
+            const segments = pathname.split('/').filter(Boolean);
+            const rn = segments[2];
+            const latest = (segments[3] === 'latest');
+
+            let container = this.service.getContainer(rn);
+
+            if (container === undefined) {
+                const statusCode = StatusCode.NOT_FOUND;
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.RequestID]: requestId,
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                return response.end(JSON.stringify({ error: 'Not Found' }));
+            }
+
+            const result = this.service.deleteContentInstance(container[ShortName.ResourceID]);
+
+            if (!result) {
+                const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+                response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                    [CustomHeaders.RequestID]: requestId,
+                    [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                    [CustomHeaders.StatusCode]: statusCode,
+                });
+                return response.end(JSON.stringify({ error: 'Something went wrong while deleting content instance' }));
+            }
+
+            response.writeHead(200, {
+                [CustomHeaders.RequestID]: requestId,
+                [CustomHeaders.ContentType]: `${JSON_CONTENT_TYPE};${ShortName.Type}=${ResourceType.ContentInstance}`,
+            });
+
+            return response.end();
+
+        } else {
+            const statusCode = StatusCode.INTERNAL_SERVER_ERROR;
+            response.writeHead(HTTPStatusCodeMapping[statusCode], {
+                [CustomHeaders.RequestID]: requestId,
+                [CustomHeaders.ContentType]: JSON_CONTENT_TYPE,
+                [CustomHeaders.StatusCode]: statusCode,
+            });
+            return response.end(JSON.stringify({ error: 'Something went wrong while deleting the container' }));
+        }
     }
 
     private retrieveContentInstance(request: IncomingMessage, response: ServerResponse, requestId: string) {
